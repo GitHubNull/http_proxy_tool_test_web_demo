@@ -1,5 +1,5 @@
 # 使用官方 Go 镜像作为构建环境
-FROM golang:1.22-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # 添加构建参数
 ARG BUILD_VERSION=v1.0.0

@@ -28,7 +28,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23.x'
 
       - name: Cache Go modules
         uses: actions/cache@v4
@@ -54,9 +54,10 @@ jobs:
         run: go test -v ./...
 
       - name: Run security scan with gosec
-        run: |
-          go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
-          gosec -fmt sarif -out results.sarif ./... || true
+        uses: securego/gosec@master
+        with:
+          args: '-fmt sarif -out results.sarif ./...'
+        continue-on-error: true
 
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v3
@@ -222,25 +223,133 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
         with:
-          name: build-artifacts
-          path: ./artifacts
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v -race ./...
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.64.8
+          args: --timeout=5m
+
+      - name: Run security scan with gosec
+        uses: securego/gosec@master
+        with:
+          args: '-fmt sarif -out results.sarif ./...'
+        continue-on-error: true
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+        continue-on-error: true
+
+      - name: Run Go vulnerability check
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+      - name: Get version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # 获取上一个tag
+          PREVIOUS_TAG=$(git describe --abbrev=0 --tags --exclude="$(git describe --abbrev=0 --tags)" 2>/dev/null || echo "")
+          
+          # 生成变更日志
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          echo "## Changes since ${PREVIOUS_TAG:-initial release}" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          
+          if [ -n "$PREVIOUS_TAG" ]; then
+            git log --pretty=format:"- %s" ${PREVIOUS_TAG}..HEAD >> $GITHUB_OUTPUT
+          else
+            git log --pretty=format:"- %s" HEAD >> $GITHUB_OUTPUT
+          fi
+          
+          echo "" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Build for multiple platforms
+        run: |
+          # 创建构建目录
+          mkdir -p dist
+          
+          # 构建Linux amd64
+          GOOS=linux GOARCH=amd64 go build -ldflags="-w -s -X main.version=${{ steps.get_version.outputs.VERSION }}" -o dist/http_proxy_tool_linux_amd64 .
+          
+          # 构建Linux arm64
+          GOOS=linux GOARCH=arm64 go build -ldflags="-w -s -X main.version=${{ steps.get_version.outputs.VERSION }}" -o dist/http_proxy_tool_linux_arm64 .
+          
+          # 构建Windows amd64
+          GOOS=windows GOARCH=amd64 go build -ldflags="-w -s -X main.version=${{ steps.get_version.outputs.VERSION }}" -o dist/http_proxy_tool_windows_amd64.exe .
+          
+          # 构建macOS amd64
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-w -s -X main.version=${{ steps.get_version.outputs.VERSION }}" -o dist/http_proxy_tool_darwin_amd64 .
+          
+          # 构建macOS arm64
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-w -s -X main.version=${{ steps.get_version.outputs.VERSION }}" -o dist/http_proxy_tool_darwin_arm64 .
+          
+          # 生成校验和
+          cd dist
+          sha256sum * > checksums.txt
+          ls -la
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/http-proxy-tool:latest
+            ${{ secrets.DOCKER_USERNAME }}/http-proxy-tool:${{ steps.get_version.outputs.VERSION }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Create Release
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/create-release@v1
         with:
-          tag: ${{ needs.build-and-test.outputs.version }}
-          name: 'Release ${{ needs.build-and-test.outputs.version }}'
-          body: ${{ needs.build-and-test.outputs.changelog }}
-          draft: false
-          prerelease: ${{ contains(needs.build-and-test.outputs.version, '-') }}
-          artifacts: |
-            artifacts/dist/*
-            artifacts/changelog.md
+          tag: ${{ steps.get_version.outputs.VERSION }}
+          name: Release ${{ steps.get_version.outputs.VERSION }}
+          body: ${{ steps.changelog.outputs.CHANGELOG }}
+          artifacts: "dist/*"
           token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
 
   # 部署到生产环境（可选）
   deploy-production:

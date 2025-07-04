@@ -54,7 +54,7 @@
 
 ## 🛠️ 技术栈
 
-- **后端**: Go 1.21+ + Gin框架 + Gorilla WebSocket
+- **后端**: Go 1.23+ + Gin框架 + Gorilla WebSocket
 - **前端**: HTML5 + CSS3 + JavaScript + Bootstrap 5 + jQuery
 - **依赖管理**: Go Modules
 - **跨域支持**: CORS中间件
@@ -90,8 +90,8 @@ golangci-lint run --fix
 项目在GitHub Actions中集成了完整的CI/CD流程：
 
 - **代码质量检查**: golangci-lint 自动化检查
-- **单元测试**: Go 1.21和1.22多版本测试
-- **安全扫描**: 使用 gosec 和 snyk 进行安全检查
+- **单元测试**: Go 1.23和1.24多版本测试
+- **安全扫描**: 使用 gosec 进行安全检查
 - **依赖检查**: 使用 govulncheck 检查漏洞
 - **性能测试**: 自动化基准测试
 - **Docker构建**: 多平台容器构建测试
@@ -101,7 +101,7 @@ golangci-lint run --fix
 
 ### 系统要求
 
-- Go 1.21 或更高版本
+- Go 1.23 或更高版本
 - 支持的操作系统：Linux、macOS、Windows
 - 内存：最低 512MB，推荐 1GB 以上
 - 磁盘空间：100MB 以上
