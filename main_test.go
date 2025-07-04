@@ -66,7 +66,10 @@ func TestAPITest(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, 200, w.Code)
-	assert.Contains(t, w.Body.String(), "success")
+	// 检查响应包含正确的JSON结构
+	assert.Contains(t, w.Body.String(), `"code":200`)
+	assert.Contains(t, w.Body.String(), "method")
+	assert.Contains(t, w.Body.String(), "url")
 }
 
 // TestSystemInfo 测试系统信息接口
@@ -78,7 +81,10 @@ func TestSystemInfo(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, 200, w.Code)
-	assert.Contains(t, w.Body.String(), "success")
+	// 检查响应包含正确的JSON结构
+	assert.Contains(t, w.Body.String(), `"code":200`)
+	assert.Contains(t, w.Body.String(), "cpu_count")
+	assert.Contains(t, w.Body.String(), "memory")
 }
 
 // TestCORS 测试CORS配置
