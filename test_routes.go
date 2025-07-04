@@ -324,7 +324,6 @@ func handleMemoryTest(c *gin.Context) {
 	}
 
 	// 清理内存
-	data = nil
 	runtime.GC()
 
 	response := ApiResponse{
@@ -814,7 +813,7 @@ func handleKeepAliveTest(c *gin.Context) {
 		data := map[string]interface{}{
 			"sequence":   count,
 			"timestamp":  time.Now().Unix(),
-			"remaining":  int(endTime.Sub(time.Now()).Seconds()),
+			"remaining":  int(time.Until(endTime).Seconds()),
 			"client_ip":  c.ClientIP(),
 			"user_agent": c.GetHeader("User-Agent"),
 		}

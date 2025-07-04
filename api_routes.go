@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -284,7 +285,16 @@ func handleFileUpload(c *gin.Context) {
 
 	// 读取文件内容
 	buf := new(bytes.Buffer)
-	io.Copy(buf, file)
+	if _, err := io.Copy(buf, file); err != nil {
+		c.JSON(http.StatusInternalServerError, ApiResponse{
+			Code:      500,
+			Message:   "读取文件内容失败: " + err.Error(),
+			Data:      nil,
+			Timestamp: time.Now().Unix(),
+			RequestID: generateRequestID(),
+		})
+		return
+	}
 
 	data := map[string]interface{}{
 		"filename": header.Filename,
@@ -328,7 +338,9 @@ func handleMultipleFileUpload(c *gin.Context) {
 		defer f.Close()
 
 		buf := new(bytes.Buffer)
-		io.Copy(buf, f)
+		if _, err := io.Copy(buf, f); err != nil {
+			continue
+		}
 
 		fileInfo := map[string]interface{}{
 			"filename": file.Filename,
@@ -694,7 +706,10 @@ func handleStream(c *gin.Context) {
 	c.Header("Connection", "keep-alive")
 
 	for i := 0; i < lines; i++ {
-		c.Writer.WriteString(fmt.Sprintf("第 %d 行数据 - 时间戳: %d\n", i+1, time.Now().Unix()))
+		if _, err := c.Writer.WriteString(fmt.Sprintf("第 %d 行数据 - 时间戳: %d\n", i+1, time.Now().Unix())); err != nil {
+			log.Printf("写入流数据失败: %v", err)
+			return
+		}
 		c.Writer.Flush()
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -707,7 +722,10 @@ func handleSSE(c *gin.Context) {
 	c.Header("Connection", "keep-alive")
 
 	for i := 0; i < 10; i++ {
-		c.Writer.WriteString(fmt.Sprintf("data: {\"message\": \"事件 %d\", \"timestamp\": %d}\n\n", i+1, time.Now().Unix()))
+		if _, err := c.Writer.WriteString(fmt.Sprintf("data: {\"message\": \"事件 %d\", \"timestamp\": %d}\n\n", i+1, time.Now().Unix())); err != nil {
+			log.Printf("写入SSE数据失败: %v", err)
+			return
+		}
 		c.Writer.Flush()
 		time.Sleep(1 * time.Second)
 	}
@@ -766,7 +784,10 @@ func getRequestInfo(c *gin.Context) *RequestInfo {
 		if len(bodyBytes) > 0 {
 			contentType := c.GetHeader("Content-Type")
 			if strings.Contains(contentType, "application/json") {
-				json.Unmarshal(bodyBytes, &body)
+				if err := json.Unmarshal(bodyBytes, &body); err != nil {
+					// 如果JSON解析失败，将原始数据作为字符串处理
+					body = string(bodyBytes)
+				}
 			} else {
 				body = string(bodyBytes)
 			}

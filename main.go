@@ -118,7 +118,7 @@ func main() {
 				"version":     Version,
 				"buildTime":   BuildTime,
 				"buildCommit": BuildCommit,
-				"goVersion":   fmt.Sprintf("%s", os.Getenv("GO_VERSION")),
+				"goVersion":   os.Getenv("GO_VERSION"),
 			},
 		})
 	})

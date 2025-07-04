@@ -260,28 +260,29 @@ func handleWebSocketRealtime(c *gin.Context) {
 
 	counter := 0
 	for {
-		select {
-		case <-ticker.C:
-			counter++
-			message := WebSocketMessage{
-				Type: "realtime",
-				Data: map[string]interface{}{
-					"counter":   counter,
-					"timestamp": time.Now().Unix(),
-					"random":    time.Now().Nanosecond(),
-				},
-				Timestamp: time.Now().Unix(),
-				ID:        generateRequestID(),
-			}
+		<-ticker.C
+		counter++
+		message := WebSocketMessage{
+			Type: "realtime",
+			Data: map[string]interface{}{
+				"counter":   counter,
+				"timestamp": time.Now().Unix(),
+				"random":    time.Now().Nanosecond(),
+			},
+			Timestamp: time.Now().Unix(),
+			ID:        generateRequestID(),
+		}
 
-			if err := conn.WriteJSON(message); err != nil {
-				log.Printf("发送实时数据失败: %v", err)
-				return
-			}
+		if err := conn.WriteJSON(message); err != nil {
+			log.Printf("发送实时数据失败: %v", err)
+			return
 		}
 
 		// 检查连接是否关闭
-		conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+		if err := conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond)); err != nil {
+			log.Printf("设置读取超时失败: %v", err)
+			return
+		}
 		if _, _, err := conn.ReadMessage(); err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("WebSocket连接异常关闭: %v", err)
@@ -301,9 +302,14 @@ func handleWebSocketHeartbeat(c *gin.Context) {
 	defer conn.Close()
 
 	// 设置心跳
-	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	if err := conn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
+		log.Printf("设置读取超时失败: %v", err)
+		return
+	}
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		if err := conn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
+			log.Printf("设置Pong读取超时失败: %v", err)
+		}
 		return nil
 	})
 
@@ -312,12 +318,10 @@ func handleWebSocketHeartbeat(c *gin.Context) {
 	defer ticker.Stop()
 
 	for {
-		select {
-		case <-ticker.C:
-			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				log.Printf("发送心跳失败: %v", err)
-				return
-			}
+		<-ticker.C
+		if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			log.Printf("发送心跳失败: %v", err)
+			return
 		}
 
 		// 读取消息
@@ -456,40 +460,37 @@ func handleWebSocketPerformance(c *gin.Context) {
 	defer ticker.Stop()
 
 	sent := 0
-	for {
-		select {
-		case <-ticker.C:
-			if sent >= count {
-				// 发送完成消息
-				completeMsg := WebSocketMessage{
-					Type:      "performance_complete",
-					Data:      fmt.Sprintf("性能测试完成，共发送 %d 条消息", count),
-					Timestamp: time.Now().Unix(),
-					ID:        generateRequestID(),
-				}
-
-				if err := conn.WriteJSON(completeMsg); err != nil {
-					log.Printf("发送完成消息失败: %v", err)
-				}
-				return
-			}
-
-			sent++
-			message := WebSocketMessage{
-				Type: "performance",
-				Data: map[string]interface{}{
-					"sequence": sent,
-					"total":    count,
-					"content":  fmt.Sprintf("性能测试消息 #%d", sent),
-				},
+	for range ticker.C {
+		if sent >= count {
+			// 发送完成消息
+			completeMsg := WebSocketMessage{
+				Type:      "performance_complete",
+				Data:      fmt.Sprintf("性能测试完成，共发送 %d 条消息", count),
 				Timestamp: time.Now().Unix(),
 				ID:        generateRequestID(),
 			}
 
-			if err := conn.WriteJSON(message); err != nil {
-				log.Printf("发送性能测试消息失败: %v", err)
-				return
+			if err := conn.WriteJSON(completeMsg); err != nil {
+				log.Printf("发送完成消息失败: %v", err)
 			}
+			return
+		}
+
+		sent++
+		message := WebSocketMessage{
+			Type: "performance",
+			Data: map[string]interface{}{
+				"sequence": sent,
+				"total":    count,
+				"content":  fmt.Sprintf("性能测试消息 #%d", sent),
+			},
+			Timestamp: time.Now().Unix(),
+			ID:        generateRequestID(),
+		}
+
+		if err := conn.WriteJSON(message); err != nil {
+			log.Printf("发送性能测试消息失败: %v", err)
+			return
 		}
 	}
 }
