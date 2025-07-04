@@ -96,12 +96,21 @@ print_info "检查代码格式..."
 if command -v gofmt &> /dev/null; then
     UNFORMATTED=$(gofmt -l .)
     if [ -n "$UNFORMATTED" ]; then
-        print_error "以下文件格式不正确:"
+        print_warning "以下文件格式不正确:"
         echo "$UNFORMATTED"
-        print_info "运行 'gofmt -w .' 修复格式问题"
-        exit 1
+        print_info "自动修复格式问题..."
+        gofmt -w .
+        
+        # 检查是否有格式更改
+        if [ -n "$(git status --porcelain)" ]; then
+            print_info "格式已修复，提交格式更改..."
+            git add .
+            git commit -m "style: auto-fix code formatting with gofmt"
+        fi
+        print_success "代码格式已修复"
+    else
+        print_success "代码格式检查通过"
     fi
-    print_success "代码格式检查通过"
 fi
 
 # 生成变更日志
