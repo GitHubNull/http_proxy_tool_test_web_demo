@@ -1,0 +1,167 @@
+version: '3.8'
+
+services:
+  proxy-test-tool:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-v1.0.0}
+        BUILD_TIME: ${BUILD_TIME}
+        BUILD_COMMIT: ${BUILD_COMMIT}
+    image: proxy-test-tool:${TAG:-latest}
+    container_name: proxy-test-tool-prod
+    restart: always
+    ports:
+      - "${HOST_PORT:-8080}:8080"
+    environment:
+      - GIN_MODE=release
+      - PORT=8080
+      - TZ=${TIMEZONE:-Asia/Shanghai}
+      - LOG_LEVEL=${LOG_LEVEL:-warn}
+    networks:
+      - proxy-test-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "--timeout=3", "http://localhost:8080/api/test"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - proxy-test-logs:/app/logs
+      - proxy-test-config:/app/config:ro
+    labels:
+      - "com.proxy-test-tool.description=HTTP/WebSocket代理测试工具 - 生产环境"
+      - "com.proxy-test-tool.version=${BUILD_VERSION:-v1.0.0}"
+      - "com.proxy-test-tool.environment=production"
+    # 生产环境资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 512M
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: stop-first
+        failure_action: rollback
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+        window: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nginx:
+    image: nginx:alpine
+    container_name: proxy-test-nginx-prod
+    restart: always
+    ports:
+      - "${NGINX_PORT:-80}:80"
+      - "${NGINX_SSL_PORT:-443}:443"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - proxy-test-nginx-logs:/var/log/nginx
+    depends_on:
+      - proxy-test-tool
+    networks:
+      - proxy-test-network
+    labels:
+      - "com.proxy-test-tool.service=nginx"
+      - "com.proxy-test-tool.environment=production"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # 监控服务（可选）
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: proxy-test-prometheus
+    restart: always
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - proxy-test-network
+    profiles:
+      - monitoring
+    labels:
+      - "com.proxy-test-tool.service=prometheus"
+      - "com.proxy-test-tool.environment=production"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: proxy-test-grafana
+    restart: always
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - proxy-test-network
+    profiles:
+      - monitoring
+    labels:
+      - "com.proxy-test-tool.service=grafana"
+      - "com.proxy-test-tool.environment=production"
+
+networks:
+  proxy-test-network:
+    driver: bridge
+    name: proxy-test-network-prod
+
+volumes:
+  proxy-test-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${LOGS_PATH:-./logs}
+  proxy-test-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CONFIG_PATH:-./config}
+  proxy-test-nginx-logs:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local 

@@ -1,0 +1,258 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # 代码质量检查
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          # 使用默认配置，包含errcheck, gosimple, govet, ineffassign等基础linter
+          args: --timeout=5m
+
+  # 单元测试
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['1.21', '1.22']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-${{ matrix.go-version }}-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Generate coverage report
+        run: go tool cover -html=coverage.out -o coverage.html
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.out
+          flags: unittests
+          name: codecov-umbrella
+
+  # 构建测试
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Build application
+        run: |
+          go build -v -o proxy-test-tool .
+
+      - name: Test binary
+        run: |
+          ./proxy-test-tool --version 2>/dev/null || echo "Version flag not supported yet"
+
+  # 安全扫描
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Gosec Security Scanner
+        uses: securecodewarrior/github-action-gosec@master
+        with:
+          args: ./...
+
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/golang@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+        continue-on-error: true
+
+  # Docker构建测试
+  docker-build-test:
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          tags: proxy-test-tool:test
+          build-args: |
+            BUILD_VERSION=test
+            BUILD_TIME=2024-01-01T00:00:00Z
+            BUILD_COMMIT=test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Docker image
+        run: |
+          docker run --rm proxy-test-tool:test --version 2>/dev/null || echo "Version flag not supported yet"
+
+  # 依赖检查
+  dependency-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+
+      - name: Check for vulnerabilities
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+      - name: Check for outdated dependencies
+        run: |
+          go list -u -m all
+
+  # 性能测试
+  performance:
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+
+      - name: Run benchmark tests
+        run: |
+          go test -bench=. -benchmem ./... | tee benchmark.txt
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-results
+          path: benchmark.txt
+
+  # 集成测试
+  integration:
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+
+      - name: Build application
+        run: go build -o proxy-test-tool .
+
+      - name: Start application
+        run: |
+          ./proxy-test-tool &
+          sleep 5
+
+      - name: Run integration tests
+        run: |
+          # 测试HTTP接口
+          curl -f http://localhost:8080/api/test || exit 1
+          curl -f http://localhost:8080/test/system || exit 1
+          curl -f http://localhost:8080/ || exit 1
+          
+          # 测试API文档页面
+          curl -f http://localhost:8080/api-docs || exit 1
+          
+          echo "所有集成测试通过！"
+
+      - name: Stop application
+        run: pkill -f proxy-test-tool || true
+
+  # 检查结果汇总
+  check-results:
+    runs-on: ubuntu-latest
+    needs: [lint, test, build, security, docker-build-test, dependency-check, performance, integration]
+    if: always()
+    steps:
+      - name: Check all jobs status
+        run: |
+          echo "CI检查结果汇总："
+          echo "代码质量检查: ${{ needs.lint.result }}"
+          echo "单元测试: ${{ needs.test.result }}"
+          echo "构建测试: ${{ needs.build.result }}"
+          echo "安全扫描: ${{ needs.security.result }}"
+          echo "Docker构建测试: ${{ needs.docker-build-test.result }}"
+          echo "依赖检查: ${{ needs.dependency-check.result }}"
+          echo "性能测试: ${{ needs.performance.result }}"
+          echo "集成测试: ${{ needs.integration.result }}"
+          
+          # 检查是否有失败的任务
+          if [[ "${{ needs.lint.result }}" == "failure" || 
+                "${{ needs.test.result }}" == "failure" || 
+                "${{ needs.build.result }}" == "failure" || 
+                "${{ needs.docker-build-test.result }}" == "failure" || 
+                "${{ needs.integration.result }}" == "failure" ]]; then
+            echo "❌ 有关键任务失败，请检查并修复！"
+            exit 1
+          else
+            echo "✅ 所有检查通过，代码质量良好！"
+          fi 

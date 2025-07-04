@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API文档 - HTTP/WebSocket代理测试工具</title>
+    <link href="/static/lib/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <strong>代理测试工具</strong>
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">返回主页</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-3">
+                <!-- 侧边栏导航 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">API目录</h6>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <a href="#overview" class="list-group-item list-group-item-action">概述</a>
+                        <a href="#http-apis" class="list-group-item list-group-item-action">HTTP接口</a>
+                        <a href="#websocket-apis" class="list-group-item list-group-item-action">WebSocket接口</a>
+                        <a href="#test-apis" class="list-group-item list-group-item-action">测试接口</a>
+                        <a href="#response-format" class="list-group-item list-group-item-action">响应格式</a>
+                        <a href="#examples" class="list-group-item list-group-item-action">使用示例</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-9">
+                <!-- 概述 -->
+                <section id="overview" class="mb-5">
+                    <h1 class="display-6 mb-4">API文档</h1>
+                    <div class="card">
+                        <div class="card-body">
+                            <h3>概述</h3>
+                            <p>本文档描述了HTTP/WebSocket代理测试工具提供的所有API接口。这些接口专为测试HTTP(S)代理和WebSocket代理抓包软件而设计。</p>
+                            
+                            <h4>基础URL</h4>
+                            <div class="code-block">http://localhost:8080</div>
+                            
+                            <h4>特性</h4>
+                            <ul>
+                                <li>支持所有标准HTTP方法（GET、POST、PUT、DELETE、PATCH、HEAD、OPTIONS）</li>
+                                <li>多种响应格式（JSON、XML、HTML、文本、二进制）</li>
+                                <li>WebSocket连接测试</li>
+                                <li>高并发和压力测试</li>
+                                <li>文件上传下载测试</li>
+                                <li>认证测试（Basic、Bearer、Digest）</li>
+                                <li>缓存和压缩测试</li>
+                                <li>系统性能监控</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- HTTP接口 -->
+                <section id="http-apis" class="mb-5">
+                    <h2>HTTP接口</h2>
+
+                    <!-- 基础测试接口 -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h4>基础测试接口</h4>
+                        </div>
+                        <div class="card-body">
+                            <h5>通用测试接口</h5>
+                            <div class="mb-3">
+                                <span class="method-badge method-get">GET</span>
+                                <span class="method-badge method-post">POST</span>
+                                <span class="method-badge method-put">PUT</span>
+                                <span class="method-badge method-delete">DELETE</span>
+                                <span class="method-badge method-patch">PATCH</span>
+                                <code>/api/test</code>
+                            </div>
+                            <p>支持所有HTTP方法的通用测试接口，返回请求的详细信息。</p>
+                            
+                            <h6>响应示例：</h6>
+                            <div class="json-viewer">{
+  "code": 200,
+  "message": "请求成功",
+  "data": {
+    "method": "GET",
+    "url": "/api/test",
+    "headers": {...},
+    "body": null,
+    "query": {...},
+    "client_ip": "127.0.0.1",
+    "user_agent": "...",
+    "content_type": "",
+    "cookies": {...}
+  },
+  "timestamp": 1642435200,
+  "request_id": "req_1642435200123456789"
+}</div>
+                        </div>
+                    </div>
+
+                    <!-- 状态码测试 -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h4>状态码测试</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <span class="method-badge method-get">GET</span>
+                                <span class="method-badge method-post">POST</span>
+                                <code>/api/status/{code}</code>
+                            </div>
+                            <p>返回指定的HTTP状态码。</p>
+                            
+                            <h6>参数：</h6>
+                            <ul>
+                                <li><code>code</code> - HTTP状态码（100-599）</li>
+                            </ul>
+                            
+                            <h6>示例：</h6>
+                            <div class="code-block">GET /api/status/404</div>
+                        </div>
+                    </div>
+
+                    <!-- 延迟测试 -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h4>延迟测试</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <span class="method-badge method-get">GET</span>
+                                <span class="method-badge method-post">POST</span>
+                                <code>/api/delay/{seconds}</code>
+                            </div>
+                            <p>模拟指定秒数的延迟后返回响应。</p>
+                            
+                            <h6>参数：</h6>
+                            <ul>
+                                <li><code>seconds</code> - 延迟秒数（0-30）</li>
+                            </ul>
+                            
+                            <h6>示例：</h6>
+                            <div class="code-block">GET /api/delay/5</div>
+                        </div>
+                    </div>
+
+                    <!-- 重定向测试 -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h4>重定向测试</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <span class="method-badge method-get">GET</span>
+                                <code>/api/redirect/{times}</code>
+                            </div>
+                            <p>执行指定次数的重定向。</p>
+                            
+                            <h6>参数：</h6>
+                            <ul>
+                                <li><code>times</code> - 重定向次数（1-10）</li>
+                            </ul>
+                            
+                            <div class="mb-3">
+                                <span class="method-badge method-get">GET</span>
+                                <code>/api/redirect-to?url={url}</code>
+                            </div>
+                            <p>重定向到指定URL。</p>
+                            
+                            <h6>参数：</h6>
+                            <ul>
+                                <li><code>url</code> - 目标URL</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- 响应格式测试 -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h4>响应格式测试</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>JSON响应</h6>
+                                    <div class="code-block">GET /api/json</div>
+                                    
+                                    <h6>XML响应</h6>
+                                    <div class="code-block">GET /api/xml</div>
+                                    
+                                    <h6>HTML响应</h6>
+                                    <div class="code-block">GET /api/html</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>文本响应</h6>
+                                    <div class="code-block">GET /api/text</div>
+                                    
+                                    <h6>二进制响应</h6>
+                                    <div class="code-block">GET /api/binary</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 文件上传测试 -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h4>文件上传测试</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <span class="method-badge method-post">POST</span>
+                                <code>/api/upload</code>
+                            </div>
+                            <p>单文件上传测试。</p>
+                            
+                            <div class="mb-3">
+                                <span class="method-badge method-post">POST</span>
+                                <code>/api/upload-multiple</code>
+                            </div>
+                            <p>多文件上传测试。</p>
+                        </div>
+                    </div>
+
+                    <!-- 认证测试 -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h4>认证测试</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <h6>基础认证</h6>
+                                    <div class="code-block">GET /api/auth/basic</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <h6>Bearer认证</h6>
+                                    <div class="code-block">GET /api/auth/bearer</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <h6>Digest认证</h6>
+                                    <div class="code-block">GET /api/auth/digest</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cookie测试 -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h4>Cookie测试</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <h6>获取Cookie</h6>
+                                    <div class="code-block">GET /api/cookies</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <h6>设置Cookie</h6>
+                                    <div class="code-block">POST /api/cookies/set</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <h6>删除Cookie</h6>
+                                    <div class="code-block">GET /api/cookies/delete?name={name}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- WebSocket接口 -->
+                <section id="websocket-apis" class="mb-5">
+                    <h2>WebSocket接口</h2>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h4>WebSocket连接接口</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>基础连接</h6>
+                                    <div class="code-block">ws://localhost:8080/ws/connect</div>
+                                    
+                                    <h6>回声测试</h6>
+                                    <div class="code-block">ws://localhost:8080/ws/echo</div>
+                                    
+                                    <h6>广播测试</h6>
+                                    <div class="code-block">ws://localhost:8080/ws/broadcast</div>
+                                    
+                                    <h6>实时数据推送</h6>
+                                    <div class="code-block">ws://localhost:8080/ws/realtime</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>心跳检测</h6>
+                                    <div class="code-block">ws://localhost:8080/ws/heartbeat</div>
+                                    
+                                    <h6>二进制传输</h6>
+                                    <div class="code-block">ws://localhost:8080/ws/binary</div>
+                                    
+                                    <h6>聊天室</h6>
+                                    <div class="code-block">ws://localhost:8080/ws/chat</div>
+                                    
+                                    <h6>性能测试</h6>
+                                    <div class="code-block">ws://localhost:8080/ws/performance?count=100&interval=10</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 测试接口 -->
+                <section id="test-apis" class="mb-5">
+                    <h2>测试接口</h2>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h4>性能测试接口</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>并发测试</h6>
+                                    <div class="code-block">GET /test/concurrent?concurrency=10&requests=100&delay=0</div>
+                                    
+                                    <h6>压力测试</h6>
+                                    <div class="code-block">GET /test/stress?duration=60&concurrency=20</div>
+                                    
+                                    <h6>内存测试</h6>
+                                    <div class="code-block">GET /test/memory?size=100&duration=10</div>
+                                    
+                                    <h6>CPU测试</h6>
+                                    <div class="code-block">GET /test/cpu?duration=10&cores=4</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>系统信息</h6>
+                                    <div class="code-block">GET /test/system</div>
+                                    
+                                    <h6>网络测试</h6>
+                                    <div class="code-block">GET /test/network?size=1024</div>
+                                    
+                                    <h6>文件IO测试</h6>
+                                    <div class="code-block">GET /test/fileio?operations=100</div>
+                                    
+                                    <h6>数据库测试</h6>
+                                    <div class="code-block">GET /test/database?connections=10&duration=5</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 响应格式 -->
+                <section id="response-format" class="mb-5">
+                    <h2>响应格式</h2>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h4>标准响应格式</h4>
+                        </div>
+                        <div class="card-body">
+                            <p>所有API接口都返回统一的JSON格式响应：</p>
+                            <div class="json-viewer">{
+  "code": 200,           // HTTP状态码
+  "message": "请求成功", // 响应消息
+  "data": {...},         // 响应数据
+  "timestamp": 1642435200, // 时间戳
+  "request_id": "req_xxx"  // 请求ID
+}</div>
+                            
+                            <h6>字段说明：</h6>
+                            <ul>
+                                <li><code>code</code> - HTTP状态码</li>
+                                <li><code>message</code> - 响应消息描述</li>
+                                <li><code>data</code> - 具体的响应数据</li>
+                                <li><code>timestamp</code> - Unix时间戳</li>
+                                <li><code>request_id</code> - 唯一请求标识符</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 使用示例 -->
+                <section id="examples" class="mb-5">
+                    <h2>使用示例</h2>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h4>cURL示例</h4>
+                        </div>
+                        <div class="card-body">
+                            <h6>基础GET请求</h6>
+                            <div class="code-block">curl -X GET "http://localhost:8080/api/test"</div>
+                            
+                            <h6>POST请求发送JSON数据</h6>
+                            <div class="code-block">curl -X POST "http://localhost:8080/api/test" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello, World!"}'</div>
+                            
+                            <h6>文件上传</h6>
+                            <div class="code-block">curl -X POST "http://localhost:8080/api/upload" \
+  -F "file=@example.txt"</div>
+                            
+                            <h6>基础认证</h6>
+                            <div class="code-block">curl -X GET "http://localhost:8080/api/auth/basic" \
+  -u "username:password"</div>
+                            
+                            <h6>Bearer认证</h6>
+                            <div class="code-block">curl -X GET "http://localhost:8080/api/auth/bearer" \
+  -H "Authorization: Bearer your-token-here"</div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h4>JavaScript示例</h4>
+                        </div>
+                        <div class="card-body">
+                            <h6>基础请求</h6>
+                            <div class="code-block">fetch('/api/test')
+  .then(response => response.json())
+  .then(data => console.log(data));</div>
+                            
+                            <h6>POST请求</h6>
+                            <div class="code-block">fetch('/api/test', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    message: 'Hello, World!'
+  })
+})
+.then(response => response.json())
+.then(data => console.log(data));</div>
+                            
+                            <h6>WebSocket连接</h6>
+                            <div class="code-block">const ws = new WebSocket('ws://localhost:8080/ws/connect');
+
+ws.onopen = function(event) {
+  console.log('WebSocket连接已建立');
+};
+
+ws.onmessage = function(event) {
+  console.log('收到消息:', event.data);
+};
+
+ws.send(JSON.stringify({
+  type: 'message',
+  data: 'Hello, WebSocket!'
+}));</div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container text-center">
+            <p class="text-muted">© 2024 HTTP/WebSocket代理测试工具 API文档</p>
+        </div>
+    </footer>
+
+    <script src="/static/lib/jquery-3.7.1.min.js"></script>
+    <script src="/static/lib/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // 平滑滚动
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // 高亮当前章节
+        window.addEventListener('scroll', function() {
+            const sections = document.querySelectorAll('section[id]');
+            const navLinks = document.querySelectorAll('.list-group-item');
+            
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (pageYOffset >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

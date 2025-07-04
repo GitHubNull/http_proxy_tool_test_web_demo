@@ -1,0 +1,267 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # 触发条件：推送以v开头的tag，如v1.0.0
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # 构建和测试
+  build-and-test:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整历史记录用于生成changelog
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Run security scan
+        uses: securecodewarrior/github-action-add-sarif@v1
+        with:
+          sarif-file: 'results.sarif'
+        continue-on-error: true
+
+      - name: Build for multiple platforms
+        run: |
+          # 构建嵌入式版本 - 静态资源已打包到二进制文件中，无需单独部署静态文件
+          echo "Building embedded versions with static resources..."
+          
+          # Linux AMD64
+          GOOS=linux GOARCH=amd64 go build -ldflags "-X main.Version=${{ steps.version.outputs.version }} -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ) -X main.BuildCommit=${{ github.sha }}" -o dist/proxy-test-tool-linux-amd64
+          
+          # Linux ARM64
+          GOOS=linux GOARCH=arm64 go build -ldflags "-X main.Version=${{ steps.version.outputs.version }} -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ) -X main.BuildCommit=${{ github.sha }}" -o dist/proxy-test-tool-linux-arm64
+          
+          # macOS AMD64
+          GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.Version=${{ steps.version.outputs.version }} -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ) -X main.BuildCommit=${{ github.sha }}" -o dist/proxy-test-tool-darwin-amd64
+          
+          # macOS ARM64
+          GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.Version=${{ steps.version.outputs.version }} -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ) -X main.BuildCommit=${{ github.sha }}" -o dist/proxy-test-tool-darwin-arm64
+          
+          # Windows AMD64
+          GOOS=windows GOARCH=amd64 go build -ldflags "-X main.Version=${{ steps.version.outputs.version }} -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ) -X main.BuildCommit=${{ github.sha }}" -o dist/proxy-test-tool-windows-amd64.exe
+
+      - name: Create checksums
+        run: |
+          cd dist
+          sha256sum * > checksums.txt
+          cat checksums.txt
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # 获取当前tag和上一个tag
+          CURRENT_TAG=${{ steps.version.outputs.version }}
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 $CURRENT_TAG^ 2>/dev/null || echo "")
+          
+          echo "Current tag: $CURRENT_TAG"
+          echo "Previous tag: $PREVIOUS_TAG"
+          
+          # 生成changelog
+          if [ -z "$PREVIOUS_TAG" ]; then
+            # 如果没有上一个tag，获取所有提交
+            CHANGELOG=$(git log --pretty=format:"* %s (%h)" --reverse)
+          else
+            # 获取两个tag之间的提交
+            CHANGELOG=$(git log --pretty=format:"* %s (%h)" --reverse $PREVIOUS_TAG..$CURRENT_TAG)
+          fi
+          
+          # 保存changelog到文件
+          echo "# 版本 $CURRENT_TAG 更新日志" > changelog.md
+          echo "" >> changelog.md
+          echo "## 🚀 新功能和改进" >> changelog.md
+          echo "" >> changelog.md
+          echo "$CHANGELOG" | grep -E "(feat|feature|add|新增|添加|增加)" >> changelog.md || echo "无" >> changelog.md
+          echo "" >> changelog.md
+          echo "## 🐛 错误修复" >> changelog.md
+          echo "" >> changelog.md
+          echo "$CHANGELOG" | grep -E "(fix|bug|修复|修改|优化)" >> changelog.md || echo "无" >> changelog.md
+          echo "" >> changelog.md
+          echo "## 📝 其他更改" >> changelog.md
+          echo "" >> changelog.md
+          echo "$CHANGELOG" | grep -vE "(feat|feature|add|新增|添加|增加|fix|bug|修复|修改|优化)" >> changelog.md || echo "无" >> changelog.md
+          echo "" >> changelog.md
+          echo "## 📦 构建信息" >> changelog.md
+          echo "" >> changelog.md
+          echo "- **构建时间**: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> changelog.md
+          echo "- **提交哈希**: ${{ github.sha }}" >> changelog.md
+          echo "- **Go版本**: $(go version)" >> changelog.md
+          echo "" >> changelog.md
+          echo "## 🔗 下载链接" >> changelog.md
+          echo "" >> changelog.md
+          echo "| 平台 | 架构 | 下载链接 |" >> changelog.md
+          echo "|------|------|----------|" >> changelog.md
+          echo "| Linux | AMD64 | [proxy-test-tool-linux-amd64](https://github.com/${{ github.repository }}/releases/download/$CURRENT_TAG/proxy-test-tool-linux-amd64) |" >> changelog.md
+          echo "| Linux | ARM64 | [proxy-test-tool-linux-arm64](https://github.com/${{ github.repository }}/releases/download/$CURRENT_TAG/proxy-test-tool-linux-arm64) |" >> changelog.md
+          echo "| macOS | AMD64 | [proxy-test-tool-darwin-amd64](https://github.com/${{ github.repository }}/releases/download/$CURRENT_TAG/proxy-test-tool-darwin-amd64) |" >> changelog.md
+          echo "| macOS | ARM64 | [proxy-test-tool-darwin-arm64](https://github.com/${{ github.repository }}/releases/download/$CURRENT_TAG/proxy-test-tool-darwin-arm64) |" >> changelog.md
+          echo "| Windows | AMD64 | [proxy-test-tool-windows-amd64.exe](https://github.com/${{ github.repository }}/releases/download/$CURRENT_TAG/proxy-test-tool-windows-amd64.exe) |" >> changelog.md
+          echo "" >> changelog.md
+          echo "## 🐳 Docker镜像" >> changelog.md
+          echo "" >> changelog.md
+          echo "\`\`\`bash" >> changelog.md
+          echo "# 拉取镜像" >> changelog.md
+          echo "docker pull ghcr.io/${{ github.repository }}:$CURRENT_TAG" >> changelog.md
+          echo "" >> changelog.md
+          echo "# 运行容器" >> changelog.md
+          echo "docker run -d -p 8080:8080 --name proxy-test-tool ghcr.io/${{ github.repository }}:$CURRENT_TAG" >> changelog.md
+          echo "\`\`\`" >> changelog.md
+          
+          # 输出changelog内容
+          cat changelog.md
+          
+          # 将changelog保存到输出
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          cat changelog.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: |
+            dist/
+            changelog.md
+
+  # 构建和推送Docker镜像
+  docker-build:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_VERSION=${{ needs.build-and-test.outputs.version }}
+            BUILD_TIME=${{ github.event.head_commit.timestamp }}
+            BUILD_COMMIT=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # 创建GitHub Release
+  create-release:
+    needs: [build-and-test, docker-build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-artifacts
+          path: ./artifacts
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ needs.build-and-test.outputs.version }}
+          name: 'Release ${{ needs.build-and-test.outputs.version }}'
+          body: ${{ needs.build-and-test.outputs.changelog }}
+          draft: false
+          prerelease: ${{ contains(needs.build-and-test.outputs.version, '-') }}
+          artifacts: |
+            artifacts/dist/*
+            artifacts/changelog.md
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # 部署到生产环境（可选）
+  deploy-production:
+    needs: [build-and-test, docker-build, create-release]
+    runs-on: ubuntu-latest
+    if: ${{ !contains(needs.build-and-test.outputs.version, '-') }}  # 只有正式版本才部署
+    environment: production
+    steps:
+      - name: Deploy to production
+        run: |
+          echo "部署到生产环境..."
+          echo "版本: ${{ needs.build-and-test.outputs.version }}"
+          echo "镜像: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-test.outputs.version }}"
+          # 这里可以添加实际的部署脚本
+          # 例如：kubectl set image deployment/proxy-test-tool proxy-test-tool=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-test.outputs.version }}
+
+  # 通知相关人员
+  notify:
+    needs: [build-and-test, docker-build, create-release]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Notify release status
+        run: |
+          if [ "${{ needs.create-release.result }}" == "success" ]; then
+            echo "✅ 版本 ${{ needs.build-and-test.outputs.version }} 发布成功！"
+          else
+            echo "❌ 版本 ${{ needs.build-and-test.outputs.version }} 发布失败！"
+          fi
+          
+          # 这里可以添加通知逻辑，如发送邮件、Slack、微信等
+          # 例如：curl -X POST -H 'Content-type: application/json' --data '{"text":"New release: ${{ needs.build-and-test.outputs.version }}"}' YOUR_WEBHOOK_URL 
