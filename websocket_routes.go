@@ -105,7 +105,9 @@ func (manager *WebSocketManager) run() {
 			manager.mutex.Lock()
 			if _, ok := manager.clients[client]; ok {
 				delete(manager.clients, client)
-				client.Close()
+				if err := client.Close(); err != nil {
+					log.Printf("关闭WebSocket连接失败: %v", err)
+				}
 				log.Printf("WebSocket客户端断开: %v", client.RemoteAddr())
 			}
 			manager.mutex.Unlock()
@@ -115,7 +117,9 @@ func (manager *WebSocketManager) run() {
 			for client := range manager.clients {
 				if err := client.WriteMessage(websocket.TextMessage, message); err != nil {
 					delete(manager.clients, client)
-					client.Close()
+					if closeErr := client.Close(); closeErr != nil {
+						log.Printf("关闭WebSocket连接失败: %v", closeErr)
+					}
 				}
 			}
 			manager.mutex.RUnlock()

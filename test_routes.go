@@ -135,7 +135,7 @@ func handleConcurrentTest(c *gin.Context) {
 			}
 
 			// 模拟一些处理
-			processTime := rand.Intn(50) + 10
+			processTime := rand.Intn(50) + 10 // #nosec G404 - 用于模拟测试延迟，非安全敏感
 			time.Sleep(time.Duration(processTime) * time.Millisecond)
 
 			responseTime := time.Since(requestStart).Milliseconds()
@@ -218,7 +218,7 @@ func handleStressTest(c *gin.Context) {
 					requestStart := time.Now()
 
 					// 模拟处理
-					processTime := rand.Intn(100) + 50
+					processTime := rand.Intn(100) + 50 // #nosec G404 - 用于模拟测试延迟，非安全敏感
 					time.Sleep(time.Duration(processTime) * time.Millisecond)
 
 					responseTime := time.Since(requestStart).Milliseconds()
@@ -609,7 +609,7 @@ func handleRandomDelayTest(c *gin.Context) {
 	startTime := time.Now()
 
 	// 生成随机延迟
-	delay := rand.Intn(max-min) + min
+	delay := rand.Intn(max-min) + min // #nosec G404 - 用于模拟测试延迟，非安全敏感
 	time.Sleep(time.Duration(delay) * time.Millisecond)
 
 	endTime := time.Now()
@@ -682,7 +682,7 @@ func handleFileIOTest(c *gin.Context) {
 	// 模拟文件操作
 	for i := 0; i < operations; i++ {
 		// 模拟文件读写延迟
-		time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
+		time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond) // #nosec G404 - 用于模拟测试延迟，非安全敏感
 	}
 
 	endTime := time.Now()
@@ -734,13 +734,13 @@ func handleDatabaseTest(c *gin.Context) {
 			connStart := time.Now()
 
 			// 模拟数据库连接和查询
-			time.Sleep(time.Duration(rand.Intn(100)+50) * time.Millisecond)
+			time.Sleep(time.Duration(rand.Intn(100)+50) * time.Millisecond) // #nosec G404 - 用于模拟测试延迟，非安全敏感
 
 			// 模拟查询操作
 			queries := 0
 			for time.Since(connStart) < time.Duration(duration)*time.Second {
 				// 模拟查询延迟
-				time.Sleep(time.Duration(rand.Intn(20)+10) * time.Millisecond)
+				time.Sleep(time.Duration(rand.Intn(20)+10) * time.Millisecond) // #nosec G404 - 用于模拟测试延迟，非安全敏感
 				queries++
 			}
 
