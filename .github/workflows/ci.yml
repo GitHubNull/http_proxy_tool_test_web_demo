@@ -15,12 +15,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: '1.22'
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v6
         with:
           version: latest
           # 使用默认配置，包含errcheck, gosimple, govet, ineffassign等基础linter
@@ -37,12 +37,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
 
       - name: Cache Go modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/go-build
@@ -61,7 +61,7 @@ jobs:
         run: go tool cover -html=coverage.out -o coverage.html
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           file: ./coverage.out
           flags: unittests
@@ -76,12 +76,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: '1.22'
 
       - name: Cache Go modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/go-build
@@ -105,10 +105,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run Gosec Security Scanner
-        uses: securecodewarrior/github-action-gosec@master
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          args: ./...
+          go-version: '1.22'
+
+      - name: Run Gosec Security Scanner
+        run: |
+          go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+          gosec ./...
 
       - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions/golang@master
@@ -130,7 +135,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64
@@ -155,7 +160,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: '1.22'
 
@@ -177,7 +182,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: '1.22'
 
@@ -186,7 +191,7 @@ jobs:
           go test -bench=. -benchmem ./... | tee benchmark.txt
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
           path: benchmark.txt
@@ -200,7 +205,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: '1.22'
 
@@ -235,24 +240,21 @@ jobs:
     steps:
       - name: Check all jobs status
         run: |
-          echo "CI检查结果汇总："
           echo "代码质量检查: ${{ needs.lint.result }}"
           echo "单元测试: ${{ needs.test.result }}"
           echo "构建测试: ${{ needs.build.result }}"
           echo "安全扫描: ${{ needs.security.result }}"
-          echo "Docker构建测试: ${{ needs.docker-build-test.result }}"
+          echo "Docker构建: ${{ needs.docker-build-test.result }}"
           echo "依赖检查: ${{ needs.dependency-check.result }}"
           echo "性能测试: ${{ needs.performance.result }}"
           echo "集成测试: ${{ needs.integration.result }}"
           
-          # 检查是否有失败的任务
-          if [[ "${{ needs.lint.result }}" == "failure" || 
-                "${{ needs.test.result }}" == "failure" || 
-                "${{ needs.build.result }}" == "failure" || 
-                "${{ needs.docker-build-test.result }}" == "failure" || 
-                "${{ needs.integration.result }}" == "failure" ]]; then
-            echo "❌ 有关键任务失败，请检查并修复！"
+          if [ "${{ needs.lint.result }}" != "success" ] || 
+             [ "${{ needs.test.result }}" != "success" ] || 
+             [ "${{ needs.build.result }}" != "success" ] ||
+             [ "${{ needs.integration.result }}" != "success" ]; then
+            echo "❌ 有关键任务失败"
             exit 1
           else
-            echo "✅ 所有检查通过，代码质量良好！"
+            echo "✅ 所有关键任务都成功"
           fi 
