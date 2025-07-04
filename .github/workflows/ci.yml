@@ -17,7 +17,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23.x'
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
@@ -109,6 +109,16 @@ jobs:
         with:
           go-version: '1.23.x'
 
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
       - name: Run Gosec Security Scanner
         uses: securego/gosec@master
         with:
@@ -116,6 +126,9 @@ jobs:
 
       - name: Run Go vulnerability check
         run: |
+          # 清理Go模块缓存以避免版本冲突
+          go clean -modcache
+          go mod download
           go install golang.org/x/vuln/cmd/govulncheck@latest
           govulncheck ./...
 
@@ -148,7 +161,7 @@ jobs:
         run: |
           docker run --rm proxy-test-tool:test --version 2>/dev/null || echo "Version flag not supported yet"
 
-  # 依赖检查
+  # 依赖检查 (移除重复的govulncheck)
   dependency-check:
     runs-on: ubuntu-latest
     steps:
@@ -158,12 +171,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
-
-      - name: Check for vulnerabilities
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
+          go-version: '1.23.x'
 
       - name: Check for outdated dependencies
         run: |
@@ -180,7 +188,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23.x'
 
       - name: Run benchmark tests
         run: |
@@ -203,7 +211,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23.x'
 
       - name: Build application
         run: go build -o proxy-test-tool .
