@@ -123,4 +123,4 @@ func BenchmarkSystemInfo(b *testing.B) {
 		req, _ := http.NewRequest("GET", "/test/system", nil)
 		router.ServeHTTP(w, req)
 	}
-} 
+}

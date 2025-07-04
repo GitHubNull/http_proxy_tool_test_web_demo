@@ -32,17 +32,17 @@ type WebSocketMessage struct {
 
 // WebSocket连接管理器
 type WebSocketManager struct {
-	clients   map[*websocket.Conn]bool
-	broadcast chan []byte
-	register  chan *websocket.Conn
+	clients    map[*websocket.Conn]bool
+	broadcast  chan []byte
+	register   chan *websocket.Conn
 	unregister chan *websocket.Conn
-	mutex     sync.RWMutex
+	mutex      sync.RWMutex
 }
 
 var wsManager = &WebSocketManager{
-	clients:   make(map[*websocket.Conn]bool),
-	broadcast: make(chan []byte),
-	register:  make(chan *websocket.Conn),
+	clients:    make(map[*websocket.Conn]bool),
+	broadcast:  make(chan []byte),
+	register:   make(chan *websocket.Conn),
 	unregister: make(chan *websocket.Conn),
 }
 
@@ -55,25 +55,25 @@ func initWebSocketRoutes(r *gin.Engine) {
 	{
 		// 基础WebSocket连接
 		ws.GET("/connect", handleWebSocketConnect)
-		
+
 		// 回声WebSocket
 		ws.GET("/echo", handleWebSocketEcho)
-		
+
 		// 广播WebSocket
 		ws.GET("/broadcast", handleWebSocketBroadcast)
-		
+
 		// 实时数据推送
 		ws.GET("/realtime", handleWebSocketRealtime)
-		
+
 		// 心跳检测
 		ws.GET("/heartbeat", handleWebSocketHeartbeat)
-		
+
 		// 二进制数据传输
 		ws.GET("/binary", handleWebSocketBinary)
-		
+
 		// 聊天室
 		ws.GET("/chat", handleWebSocketChat)
-		
+
 		// 性能测试
 		ws.GET("/performance", handleWebSocketPerformance)
 	}
@@ -91,7 +91,7 @@ func (manager *WebSocketManager) run() {
 			manager.clients[client] = true
 			manager.mutex.Unlock()
 			log.Printf("WebSocket客户端连接: %v", client.RemoteAddr())
-			
+
 			// 发送欢迎消息
 			welcomeMsg := WebSocketMessage{
 				Type:      "welcome",
@@ -130,7 +130,7 @@ func (manager *WebSocketManager) sendToClient(client *websocket.Conn, message We
 		log.Printf("消息序列化失败: %v", err)
 		return
 	}
-	
+
 	if err := client.WriteMessage(websocket.TextMessage, data); err != nil {
 		log.Printf("发送消息失败: %v", err)
 		manager.unregister <- client
@@ -144,7 +144,7 @@ func (manager *WebSocketManager) broadcastToAll(message WebSocketMessage) {
 		log.Printf("消息序列化失败: %v", err)
 		return
 	}
-	
+
 	manager.mutex.RLock()
 	for client := range manager.clients {
 		if err := client.WriteMessage(websocket.TextMessage, data); err != nil {
@@ -162,20 +162,20 @@ func handleWebSocketConnect(c *gin.Context) {
 		log.Printf("WebSocket升级失败: %v", err)
 		return
 	}
-	
+
 	wsManager.register <- conn
-	
+
 	defer func() {
 		wsManager.unregister <- conn
 	}()
-	
+
 	for {
 		var message WebSocketMessage
 		if err := conn.ReadJSON(&message); err != nil {
 			log.Printf("读取消息失败: %v", err)
 			break
 		}
-		
+
 		// 处理收到的消息
 		response := WebSocketMessage{
 			Type:      "response",
@@ -183,7 +183,7 @@ func handleWebSocketConnect(c *gin.Context) {
 			Timestamp: time.Now().Unix(),
 			ID:        generateRequestID(),
 		}
-		
+
 		wsManager.sendToClient(conn, response)
 	}
 }
@@ -196,14 +196,14 @@ func handleWebSocketEcho(c *gin.Context) {
 		return
 	}
 	defer conn.Close()
-	
+
 	for {
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
 			log.Printf("读取消息失败: %v", err)
 			break
 		}
-		
+
 		// 回声消息
 		if err := conn.WriteMessage(messageType, message); err != nil {
 			log.Printf("发送回声消息失败: %v", err)
@@ -219,20 +219,20 @@ func handleWebSocketBroadcast(c *gin.Context) {
 		log.Printf("WebSocket升级失败: %v", err)
 		return
 	}
-	
+
 	wsManager.register <- conn
-	
+
 	defer func() {
 		wsManager.unregister <- conn
 	}()
-	
+
 	for {
 		var message WebSocketMessage
 		if err := conn.ReadJSON(&message); err != nil {
 			log.Printf("读取消息失败: %v", err)
 			break
 		}
-		
+
 		// 广播消息
 		broadcastMsg := WebSocketMessage{
 			Type:      "broadcast",
@@ -240,7 +240,7 @@ func handleWebSocketBroadcast(c *gin.Context) {
 			Timestamp: time.Now().Unix(),
 			ID:        generateRequestID(),
 		}
-		
+
 		wsManager.broadcastToAll(broadcastMsg)
 	}
 }
@@ -253,11 +253,11 @@ func handleWebSocketRealtime(c *gin.Context) {
 		return
 	}
 	defer conn.Close()
-	
+
 	// 定期推送实时数据
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
-	
+
 	counter := 0
 	for {
 		select {
@@ -273,13 +273,13 @@ func handleWebSocketRealtime(c *gin.Context) {
 				Timestamp: time.Now().Unix(),
 				ID:        generateRequestID(),
 			}
-			
+
 			if err := conn.WriteJSON(message); err != nil {
 				log.Printf("发送实时数据失败: %v", err)
 				return
 			}
 		}
-		
+
 		// 检查连接是否关闭
 		conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 		if _, _, err := conn.ReadMessage(); err != nil {
@@ -299,18 +299,18 @@ func handleWebSocketHeartbeat(c *gin.Context) {
 		return
 	}
 	defer conn.Close()
-	
+
 	// 设置心跳
 	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	conn.SetPongHandler(func(string) error {
 		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 		return nil
 	})
-	
+
 	// 发送心跳
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -319,14 +319,14 @@ func handleWebSocketHeartbeat(c *gin.Context) {
 				return
 			}
 		}
-		
+
 		// 读取消息
 		var message WebSocketMessage
 		if err := conn.ReadJSON(&message); err != nil {
 			log.Printf("读取消息失败: %v", err)
 			break
 		}
-		
+
 		// 响应消息
 		response := WebSocketMessage{
 			Type:      "heartbeat_response",
@@ -334,7 +334,7 @@ func handleWebSocketHeartbeat(c *gin.Context) {
 			Timestamp: time.Now().Unix(),
 			ID:        generateRequestID(),
 		}
-		
+
 		if err := conn.WriteJSON(response); err != nil {
 			log.Printf("发送心跳响应失败: %v", err)
 			break
@@ -350,22 +350,22 @@ func handleWebSocketBinary(c *gin.Context) {
 		return
 	}
 	defer conn.Close()
-	
+
 	for {
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
 			log.Printf("读取消息失败: %v", err)
 			break
 		}
-		
+
 		if messageType == websocket.BinaryMessage {
 			// 处理二进制数据
 			log.Printf("收到二进制数据，长度: %d", len(message))
-			
+
 			// 发送二进制响应
 			response := make([]byte, len(message))
 			copy(response, message)
-			
+
 			if err := conn.WriteMessage(websocket.BinaryMessage, response); err != nil {
 				log.Printf("发送二进制响应失败: %v", err)
 				break
@@ -377,13 +377,13 @@ func handleWebSocketBinary(c *gin.Context) {
 				log.Printf("解析文本消息失败: %v", err)
 				continue
 			}
-			
+
 			// 生成二进制数据
 			binaryData := make([]byte, 1024)
 			for i := range binaryData {
 				binaryData[i] = byte(i % 256)
 			}
-			
+
 			if err := conn.WriteMessage(websocket.BinaryMessage, binaryData); err != nil {
 				log.Printf("发送二进制数据失败: %v", err)
 				break
@@ -399,20 +399,20 @@ func handleWebSocketChat(c *gin.Context) {
 		log.Printf("WebSocket升级失败: %v", err)
 		return
 	}
-	
+
 	wsManager.register <- conn
-	
+
 	defer func() {
 		wsManager.unregister <- conn
 	}()
-	
+
 	for {
 		var message WebSocketMessage
 		if err := conn.ReadJSON(&message); err != nil {
 			log.Printf("读取消息失败: %v", err)
 			break
 		}
-		
+
 		// 处理聊天消息
 		chatMessage := WebSocketMessage{
 			Type: "chat",
@@ -424,7 +424,7 @@ func handleWebSocketChat(c *gin.Context) {
 			Timestamp: time.Now().Unix(),
 			ID:        generateRequestID(),
 		}
-		
+
 		wsManager.broadcastToAll(chatMessage)
 	}
 }
@@ -437,24 +437,24 @@ func handleWebSocketPerformance(c *gin.Context) {
 		return
 	}
 	defer conn.Close()
-	
+
 	// 获取测试参数
 	countStr := c.Query("count")
 	count, err := strconv.Atoi(countStr)
 	if err != nil || count < 1 || count > 10000 {
 		count = 100
 	}
-	
+
 	intervalStr := c.Query("interval")
 	interval, err := strconv.Atoi(intervalStr)
 	if err != nil || interval < 1 || interval > 5000 {
 		interval = 10
 	}
-	
+
 	// 发送性能测试消息
 	ticker := time.NewTicker(time.Duration(interval) * time.Millisecond)
 	defer ticker.Stop()
-	
+
 	sent := 0
 	for {
 		select {
@@ -467,13 +467,13 @@ func handleWebSocketPerformance(c *gin.Context) {
 					Timestamp: time.Now().Unix(),
 					ID:        generateRequestID(),
 				}
-				
+
 				if err := conn.WriteJSON(completeMsg); err != nil {
 					log.Printf("发送完成消息失败: %v", err)
 				}
 				return
 			}
-			
+
 			sent++
 			message := WebSocketMessage{
 				Type: "performance",
@@ -485,7 +485,7 @@ func handleWebSocketPerformance(c *gin.Context) {
 				Timestamp: time.Now().Unix(),
 				ID:        generateRequestID(),
 			}
-			
+
 			if err := conn.WriteJSON(message); err != nil {
 				log.Printf("发送性能测试消息失败: %v", err)
 				return
@@ -500,7 +500,7 @@ func handleBroadcastAPI(c *gin.Context) {
 		Message string `json:"message"`
 		Type    string `json:"type"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&requestData); err != nil {
 		c.JSON(http.StatusBadRequest, ApiResponse{
 			Code:      400,
@@ -511,7 +511,7 @@ func handleBroadcastAPI(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// 广播消息
 	broadcastMsg := WebSocketMessage{
 		Type:      requestData.Type,
@@ -519,9 +519,9 @@ func handleBroadcastAPI(c *gin.Context) {
 		Timestamp: time.Now().Unix(),
 		ID:        generateRequestID(),
 	}
-	
+
 	wsManager.broadcastToAll(broadcastMsg)
-	
+
 	response := ApiResponse{
 		Code:      200,
 		Message:   "广播消息发送成功",
@@ -529,6 +529,6 @@ func handleBroadcastAPI(c *gin.Context) {
 		Timestamp: time.Now().Unix(),
 		RequestID: generateRequestID(),
 	}
-	
+
 	c.JSON(http.StatusOK, response)
-} 
+}

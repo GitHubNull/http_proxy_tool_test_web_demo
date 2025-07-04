@@ -17,12 +17,13 @@ import (
 
 var (
 	// 版本信息变量，将在构建时注入
-	Version   = "dev"
-	BuildTime = "unknown"
+	Version     = "dev"
+	BuildTime   = "unknown"
 	BuildCommit = "unknown"
 )
 
 // 嵌入静态资源文件和模板文件
+//
 //go:embed static/*
 var staticFS embed.FS
 
@@ -81,7 +82,7 @@ func main() {
 		log.Fatal("无法创建静态文件子系统:", err)
 	}
 	r.StaticFS("/static", http.FS(staticSubFS))
-	
+
 	// 模板文件 - 使用嵌入的文件系统
 	tmpl, err := template.ParseFS(templatesFS, "templates/*.html")
 	if err != nil {
@@ -132,7 +133,7 @@ func main() {
 	if serverPort == "" {
 		serverPort = "8080"
 	}
-	
+
 	// 如果命令行指定了端口，使用命令行参数
 	if *port != "" {
 		serverPort = *port
@@ -141,4 +142,4 @@ func main() {
 	log.Printf("服务器启动在端口 %s", serverPort)
 	log.Printf("版本: %s, 构建时间: %s", Version, BuildTime)
 	log.Fatal(r.Run(":" + serverPort))
-} 
+}

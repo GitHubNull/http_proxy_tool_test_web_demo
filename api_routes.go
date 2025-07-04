@@ -114,7 +114,7 @@ func initAPIRoutes(r *gin.Engine) {
 // 通用测试处理器
 func handleTest(c *gin.Context) {
 	requestInfo := getRequestInfo(c)
-	
+
 	response := ApiResponse{
 		Code:      200,
 		Message:   "请求成功",
@@ -135,7 +135,7 @@ func handleStatusCode(c *gin.Context) {
 	}
 
 	requestInfo := getRequestInfo(c)
-	
+
 	response := ApiResponse{
 		Code:      code,
 		Message:   http.StatusText(code),
@@ -158,7 +158,7 @@ func handleDelay(c *gin.Context) {
 	time.Sleep(time.Duration(seconds) * time.Second)
 
 	requestInfo := getRequestInfo(c)
-	
+
 	response := ApiResponse{
 		Code:      200,
 		Message:   fmt.Sprintf("延迟 %d 秒后返回", seconds),
@@ -206,7 +206,7 @@ func handleJSON(c *gin.Context) {
 			"null":    nil,
 		},
 	}
-	
+
 	response := ApiResponse{
 		Code:      200,
 		Message:   "JSON响应",
@@ -230,7 +230,7 @@ func handleXML(c *gin.Context) {
     </data>
     <timestamp>` + fmt.Sprintf("%d", time.Now().Unix()) + `</timestamp>
 </response>`
-	
+
 	c.Data(http.StatusOK, "application/xml", []byte(xmlData))
 }
 
@@ -246,7 +246,7 @@ func handleHTML(c *gin.Context) {
     <p>时间戳: ` + fmt.Sprintf("%d", time.Now().Unix()) + `</p>
 </body>
 </html>`
-	
+
 	c.Data(http.StatusOK, "text/html", []byte(htmlData))
 }
 
@@ -263,7 +263,7 @@ func handleBinary(c *gin.Context) {
 	for i := range data {
 		data[i] = byte(i % 256)
 	}
-	
+
 	c.Data(http.StatusOK, "application/octet-stream", data)
 }
 
@@ -352,7 +352,7 @@ func handleMultipleFileUpload(c *gin.Context) {
 // 表单处理
 func handleForm(c *gin.Context) {
 	var formData map[string]interface{}
-	
+
 	if err := c.ShouldBind(&formData); err != nil {
 		// 手动解析表单数据
 		formData = make(map[string]interface{})
@@ -379,7 +379,7 @@ func handleForm(c *gin.Context) {
 // 表单数据处理
 func handleFormData(c *gin.Context) {
 	var formData map[string]interface{}
-	
+
 	if err := c.ShouldBind(&formData); err != nil {
 		formData = make(map[string]interface{})
 		for key, values := range c.Request.PostForm {
@@ -405,7 +405,7 @@ func handleFormData(c *gin.Context) {
 // 基础认证
 func handleBasicAuth(c *gin.Context) {
 	user, password, hasAuth := c.Request.BasicAuth()
-	
+
 	if !hasAuth {
 		c.Header("WWW-Authenticate", `Basic realm="Restricted"`)
 		c.JSON(http.StatusUnauthorized, ApiResponse{
@@ -419,8 +419,8 @@ func handleBasicAuth(c *gin.Context) {
 	}
 
 	data := map[string]interface{}{
-		"user":     user,
-		"password": password,
+		"user":          user,
+		"password":      password,
 		"authenticated": true,
 	}
 
@@ -438,7 +438,7 @@ func handleBasicAuth(c *gin.Context) {
 // Bearer Token认证
 func handleBearerAuth(c *gin.Context) {
 	authHeader := c.GetHeader("Authorization")
-	
+
 	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
 		c.JSON(http.StatusUnauthorized, ApiResponse{
 			Code:      401,
@@ -451,9 +451,9 @@ func handleBearerAuth(c *gin.Context) {
 	}
 
 	token := strings.TrimPrefix(authHeader, "Bearer ")
-	
+
 	data := map[string]interface{}{
-		"token": token,
+		"token":         token,
 		"authenticated": true,
 	}
 
@@ -471,7 +471,7 @@ func handleBearerAuth(c *gin.Context) {
 // Digest认证
 func handleDigestAuth(c *gin.Context) {
 	authHeader := c.GetHeader("Authorization")
-	
+
 	if authHeader == "" || !strings.HasPrefix(authHeader, "Digest ") {
 		c.Header("WWW-Authenticate", `Digest realm="Restricted", nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093", opaque="5ccc069c403ebaf9f0171e9517f40e41"`)
 		c.JSON(http.StatusUnauthorized, ApiResponse{
@@ -503,7 +503,7 @@ func handleDigestAuth(c *gin.Context) {
 // Cookie处理
 func handleCookies(c *gin.Context) {
 	cookies := make(map[string]string)
-	
+
 	for _, cookie := range c.Request.Cookies() {
 		cookies[cookie.Name] = cookie.Value
 	}
@@ -522,7 +522,7 @@ func handleCookies(c *gin.Context) {
 // 设置Cookie
 func handleSetCookies(c *gin.Context) {
 	var cookieData map[string]string
-	
+
 	if err := c.ShouldBindJSON(&cookieData); err != nil {
 		c.JSON(http.StatusBadRequest, ApiResponse{
 			Code:      400,
@@ -579,7 +579,7 @@ func handleDeleteCookies(c *gin.Context) {
 // 请求头处理
 func handleHeaders(c *gin.Context) {
 	headers := make(map[string]interface{})
-	
+
 	for name, values := range c.Request.Header {
 		if len(values) == 1 {
 			headers[name] = values[0]
@@ -662,9 +662,9 @@ func handleCache(c *gin.Context) {
 // ETag测试
 func handleEtag(c *gin.Context) {
 	etag := c.Param("etag")
-	
+
 	c.Header("ETag", fmt.Sprintf(`"%s"`, etag))
-	
+
 	if c.GetHeader("If-None-Match") == fmt.Sprintf(`"%s"`, etag) {
 		c.Status(http.StatusNotModified)
 		return
@@ -743,7 +743,7 @@ func handleError(c *gin.Context) {
 // 超时测试
 func handleTimeout(c *gin.Context) {
 	time.Sleep(30 * time.Second)
-	
+
 	response := ApiResponse{
 		Code:      200,
 		Message:   "超时测试完成",
@@ -762,7 +762,7 @@ func getRequestInfo(c *gin.Context) *RequestInfo {
 	if c.Request.Body != nil {
 		bodyBytes, _ := io.ReadAll(c.Request.Body)
 		c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-		
+
 		if len(bodyBytes) > 0 {
 			contentType := c.GetHeader("Content-Type")
 			if strings.Contains(contentType, "application/json") {
@@ -815,4 +815,4 @@ func getRequestInfo(c *gin.Context) *RequestInfo {
 // 生成请求ID
 func generateRequestID() string {
 	return fmt.Sprintf("req_%d", time.Now().UnixNano())
-} 
+}
