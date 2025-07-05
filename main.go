@@ -1,9 +1,11 @@
 package main
 
 import (
+	"embed"
 	"flag"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -19,6 +21,12 @@ import (
 	"http_proxy_tool_test_web_demo/routes/test/system"
 	"http_proxy_tool_test_web_demo/routes/transfer"
 )
+
+//go:embed templates/*.html
+var templatesFS embed.FS
+
+//go:embed static/*
+var staticFS embed.FS
 
 var (
 	version     string = "dev"
@@ -63,10 +71,12 @@ func main() {
 	}))
 
 	// 静态文件服务
-	r.Static("/static", "./static")
+	staticSubFS, _ := fs.Sub(staticFS, "static")
+	r.StaticFS("/static", http.FS(staticSubFS))
 
-	// 加载HTML模板
-	r.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*.html")))
+	// 加载HTML模板 - 使用嵌入的文件系统
+	tmpl := template.Must(template.New("").ParseFS(templatesFS, "templates/*.html"))
+	r.SetHTMLTemplate(tmpl)
 
 	// 创建路由管理器
 	routeManager := routes.NewRouteManager()
