@@ -121,8 +121,12 @@ func TestSystemInfo(t *testing.T) {
 	assert.Equal(t, 200, w.Code)
 	// 检查响应包含正确的JSON结构
 	assert.Contains(t, w.Body.String(), `"code":200`)
-	assert.Contains(t, w.Body.String(), "cpu_cores")
+	assert.Contains(t, w.Body.String(), "cpu_count")
+	assert.Contains(t, w.Body.String(), "goroutine_count")
 	assert.Contains(t, w.Body.String(), "memory")
+	assert.Contains(t, w.Body.String(), "alloc_mb")
+	assert.Contains(t, w.Body.String(), "gc")
+	assert.Contains(t, w.Body.String(), "num_gc")
 }
 
 // TestPerformanceConcurrent 测试并发测试接口
