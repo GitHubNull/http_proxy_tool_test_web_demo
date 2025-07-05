@@ -97,6 +97,14 @@ http_proxy_tool_*
 *_darwin_amd64
 *_darwin_arm64
 
+# Generic binary files (no extension)
+test_*
+main
+app
+server
+client
+*_binary
+
 # Database files
 *.db
 *.sqlite
