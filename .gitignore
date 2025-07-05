@@ -117,3 +117,4 @@ Dockerfile.dev
 .nyc_output
 .coverage
 .vscode-test 
+proxy-test-tool-embed
