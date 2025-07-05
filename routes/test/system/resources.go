@@ -91,7 +91,14 @@ func handleMemoryTest(c *gin.Context) {
 	// 持续时间
 	time.Sleep(time.Duration(duration) * time.Second)
 
+	// 记录分配的块数
+	allocatedChunks := len(chunks)
+	_ = allocatedChunks // 避免未使用变量警告
+
 	// 释放内存
+	for i := range chunks {
+		chunks[i] = nil
+	}
 	chunks = nil
 	runtime.GC()
 
@@ -250,7 +257,7 @@ func handleFileIOTest(c *gin.Context) {
 
 	// 读取测试数据
 	readStartTime := time.Now()
-	tempFile.Seek(0, 0)
+	_, _ = tempFile.Seek(0, 0)
 	readData := make([]byte, len(data))
 	_, err = io.ReadFull(tempFile, readData)
 	if err != nil {

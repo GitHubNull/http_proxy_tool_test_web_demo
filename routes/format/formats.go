@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"strconv"
@@ -391,13 +392,13 @@ func handleMixedMultipart(c *gin.Context) {
 	writer := multipart.NewWriter(&buffer)
 
 	// 添加文本字段
-	writer.WriteField("text_field", "这是一个文本字段")
-	writer.WriteField("number_field", "12345")
-	writer.WriteField("json_field", `{"key": "value", "number": 42}`)
+	_ = writer.WriteField("text_field", "这是一个文本字段")
+	_ = writer.WriteField("number_field", "12345")
+	_ = writer.WriteField("json_field", `{"key": "value", "number": 42}`)
 
 	// 添加文件字段
 	fileWriter, _ := writer.CreateFormFile("test_file", "test.txt")
-	fileWriter.Write([]byte("这是测试文件的内容\n包含多行数据\n用于测试文件上传"))
+	_, _ = fileWriter.Write([]byte("这是测试文件的内容\n包含多行数据\n用于测试文件上传"))
 
 	// 添加二进制数据
 	binaryWriter, _ := writer.CreateFormFile("binary_file", "binary.dat")
@@ -405,9 +406,11 @@ func handleMixedMultipart(c *gin.Context) {
 	for i := 0; i < 256; i++ {
 		binaryData[i] = byte(i)
 	}
-	binaryWriter.Write(binaryData)
+	_, _ = binaryWriter.Write(binaryData)
 
-	writer.Close()
+	if err := writer.Close(); err != nil {
+		log.Printf("关闭multipart writer失败: %v", err)
+	}
 
 	c.Data(http.StatusOK, writer.FormDataContentType(), buffer.Bytes())
 }

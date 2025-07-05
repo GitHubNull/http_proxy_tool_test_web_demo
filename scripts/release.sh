@@ -78,38 +78,65 @@ if git tag -l | grep -q "^$VERSION$"; then
     exit 1
 fi
 
-# 运行测试
-print_info "运行测试..."
-if command -v go &> /dev/null; then
-    go test ./...
-    if [ $? -ne 0 ]; then
-        print_error "测试失败，发布取消"
-        exit 1
-    fi
-    print_success "测试通过"
-else
-    print_warning "Go未安装，跳过测试"
-fi
-
-# 运行代码格式检查
-print_info "检查代码格式..."
-if command -v gofmt &> /dev/null; then
-    UNFORMATTED=$(gofmt -l .)
-    if [ -n "$UNFORMATTED" ]; then
-        print_warning "以下文件格式不正确:"
-        echo "$UNFORMATTED"
-        print_info "自动修复格式问题..."
-        gofmt -w .
-        
-        # 检查是否有格式更改
-        if [ -n "$(git status --porcelain)" ]; then
-            print_info "格式已修复，提交格式更改..."
-            git add .
-            git commit -m "style: auto-fix code formatting with gofmt"
+# 运行发布前安全检查
+print_info "运行发布前安全检查..."
+if command -v make &> /dev/null; then
+    print_info "检查 Makefile 是否存在..."
+    if [ -f "Makefile" ]; then
+        print_info "运行 make pre-release-light（轻量级检查）..."
+        if ! make pre-release-light; then
+            print_error "发布前安全检查失败，发布取消"
+            print_info "请修复以上问题后重试"
+            print_info "你也可以单独运行以下命令进行检查:"
+            print_info "  make install-tools  # 安装检查工具"
+            print_info "  make check-security # 运行安全检查"
+            print_info "  make pre-release    # 运行完整检查（耗时较长）"
+            exit 1
         fi
-        print_success "代码格式已修复"
+        print_success "发布前安全检查通过"
     else
-        print_success "代码格式检查通过"
+        print_warning "未找到 Makefile，使用基础检查..."
+        # 基础检查作为后备
+        print_info "运行基础测试..."
+        if ! go test ./...; then
+            print_error "测试失败，发布取消"
+            exit 1
+        fi
+        
+        print_info "运行基础格式检查..."
+        if ! go fmt ./...; then
+            print_error "格式检查失败，发布取消"
+            exit 1
+        fi
+        
+        print_info "运行基础语法检查..."
+        if ! go vet ./...; then
+            print_error "语法检查失败，发布取消"
+            exit 1
+        fi
+        
+        print_success "基础检查通过"
+    fi
+else
+    print_warning "make 命令未找到，跳过 Makefile 检查"
+    print_info "运行基础 Go 检查..."
+    if command -v go &> /dev/null; then
+        if ! go test ./...; then
+            print_error "测试失败，发布取消"
+            exit 1
+        fi
+        if ! go fmt ./...; then
+            print_error "格式检查失败，发布取消"
+            exit 1
+        fi
+        if ! go vet ./...; then
+            print_error "语法检查失败，发布取消"
+            exit 1
+        fi
+        print_success "基础检查通过"
+    else
+        print_error "Go 未安装，无法运行检查"
+        exit 1
     fi
 fi
 

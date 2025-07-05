@@ -207,7 +207,7 @@ func main() {
 // 初始化日志系统（简化版本）
 func initLogger(logDir string) {
 	// 创建日志目录
-	if err := os.MkdirAll(logDir, 0755); err != nil {
+	if err := os.MkdirAll(logDir, 0750); err != nil {
 		log.Printf("创建日志目录失败: %v", err)
 		return
 	}

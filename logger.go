@@ -88,7 +88,7 @@ func NewLogger(config LogConfig) (*Logger, error) {
 	}
 
 	// 创建日志目录
-	if err := os.MkdirAll(config.LogDir, 0755); err != nil {
+	if err := os.MkdirAll(config.LogDir, 0750); err != nil {
 		return nil, fmt.Errorf("创建日志目录失败: %v", err)
 	}
 
@@ -118,14 +118,22 @@ func (l *Logger) initLogFile() error {
 	// 如果日期变化，需要切换日志文件
 	if l.currentDate != dateStr || l.currentLog == nil {
 		if l.currentLog != nil {
-			l.currentLog.Close()
+			if err := l.currentLog.Close(); err != nil {
+				log.Printf("关闭旧日志文件失败: %v", err)
+			}
 		}
 
 		// 创建新的日志文件
 		logFileName := fmt.Sprintf("server-%s.log", dateStr)
-		logFilePath := filepath.Join(l.config.LogDir, logFileName)
 
-		file, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		// 验证路径安全性
+		validatedPath, err := validatePath(l.config.LogDir, logFileName)
+		if err != nil {
+			return fmt.Errorf("路径验证失败: %v", err)
+		}
+
+		// #nosec G304 - 路径已通过validatePath函数验证，防止路径遍历攻击
+		file, err := os.OpenFile(validatedPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 		if err != nil {
 			return fmt.Errorf("打开日志文件失败: %v", err)
 		}
@@ -169,7 +177,9 @@ func (l *Logger) checkRotation() error {
 
 	// 如果文件大小超过限制，进行轮转
 	if fileInfo.Size() > l.config.MaxFileSize*1024*1024 {
-		l.currentLog.Close()
+		if err := l.currentLog.Close(); err != nil {
+			log.Printf("关闭当前日志文件失败: %v", err)
+		}
 
 		// 重命名当前文件
 		oldPath := filepath.Join(l.config.LogDir, fmt.Sprintf("server-%s.log", l.currentDate))
@@ -193,15 +203,31 @@ func (l *Logger) checkRotation() error {
 
 // compressLogFile 压缩日志文件
 func (l *Logger) compressLogFile(filePath string) {
-	inputFile, err := os.Open(filePath)
+	// 验证输入文件路径
+	validatedInputPath, err := validatePath(l.config.LogDir, filepath.Base(filePath))
+	if err != nil {
+		log.Printf("输入文件路径验证失败: %v", err)
+		return
+	}
+
+	// #nosec G304 - 路径已通过validatePath函数验证，防止路径遍历攻击
+	inputFile, err := os.Open(validatedInputPath)
 	if err != nil {
 		log.Printf("打开待压缩日志文件失败: %v", err)
 		return
 	}
 	defer inputFile.Close()
 
-	gzipPath := filePath + ".gz"
-	outputFile, err := os.Create(gzipPath)
+	// 验证输出文件路径
+	gzipFileName := filepath.Base(filePath) + ".gz"
+	validatedOutputPath, err := validatePath(l.config.LogDir, gzipFileName)
+	if err != nil {
+		log.Printf("输出文件路径验证失败: %v", err)
+		return
+	}
+
+	// #nosec G304 - 路径已通过validatePath函数验证，防止路径遍历攻击
+	outputFile, err := os.Create(validatedOutputPath)
 	if err != nil {
 		log.Printf("创建压缩文件失败: %v", err)
 		return
@@ -536,4 +562,37 @@ func LogFatal(format string, args ...interface{}) {
 	if globalLogger != nil {
 		globalLogger.Fatal(format, args...)
 	}
+}
+
+// validatePath 验证路径是否安全，防止路径遍历攻击
+func validatePath(basePath, userPath string) (string, error) {
+	// 清理路径
+	cleanPath := filepath.Clean(userPath)
+
+	// 获取绝对路径
+	absBasePath, err := filepath.Abs(basePath)
+	if err != nil {
+		return "", fmt.Errorf("获取基础路径的绝对路径失败: %v", err)
+	}
+
+	// 如果用户路径是相对路径，则与基础路径连接
+	var targetPath string
+	if filepath.IsAbs(cleanPath) {
+		targetPath = cleanPath
+	} else {
+		targetPath = filepath.Join(absBasePath, cleanPath)
+	}
+
+	// 获取目标路径的绝对路径
+	absTargetPath, err := filepath.Abs(targetPath)
+	if err != nil {
+		return "", fmt.Errorf("获取目标路径的绝对路径失败: %v", err)
+	}
+
+	// 检查目标路径是否在基础路径内
+	if !strings.HasPrefix(absTargetPath, absBasePath) {
+		return "", fmt.Errorf("路径遍历攻击检测: 目标路径 %s 不在基础路径 %s 内", absTargetPath, absBasePath)
+	}
+
+	return absTargetPath, nil
 }

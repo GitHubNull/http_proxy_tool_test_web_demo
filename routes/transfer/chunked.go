@@ -166,7 +166,7 @@ func handleChunkedReceive(c *gin.Context) {
 			}
 
 			// 读取分块结束标记
-			reader.ReadLine()
+			_, _, _ = reader.ReadLine()
 
 			chunkCount++
 			chunks = append(chunks, map[string]interface{}{
@@ -239,26 +239,24 @@ func handleChunkedStream(c *gin.Context) {
 	defer ticker.Stop()
 
 	for time.Now().Before(endTime) {
-		select {
-		case <-ticker.C:
-			chunkID++
-			chunk := map[string]interface{}{
-				"chunk_id":     chunkID,
-				"timestamp":    time.Now().Unix(),
-				"elapsed_ms":   time.Since(startTime).Milliseconds(),
-				"remaining_ms": endTime.Sub(time.Now()).Milliseconds(),
-				"data":         fmt.Sprintf("流式数据块 #%d", chunkID),
-				"server_time":  time.Now().Format("2006-01-02 15:04:05.000"),
-			}
-
-			chunkData := fmt.Sprintf(`{"chunk_id":%d,"timestamp":%d,"elapsed_ms":%d,"remaining_ms":%d,"data":"流式数据块 #%d","server_time":"%s"}`,
-				chunkID, chunk["timestamp"], chunk["elapsed_ms"], chunk["remaining_ms"], chunkID, chunk["server_time"])
-
-			// 写入分块
-			fmt.Fprintf(w, "%x\r\n", len(chunkData))
-			fmt.Fprintf(w, "%s\r\n", chunkData)
-			flusher.Flush()
+		<-ticker.C
+		chunkID++
+		chunk := map[string]interface{}{
+			"chunk_id":     chunkID,
+			"timestamp":    time.Now().Unix(),
+			"elapsed_ms":   time.Since(startTime).Milliseconds(),
+			"remaining_ms": time.Until(endTime).Milliseconds(),
+			"data":         fmt.Sprintf("流式数据块 #%d", chunkID),
+			"server_time":  time.Now().Format("2006-01-02 15:04:05.000"),
 		}
+
+		chunkData := fmt.Sprintf(`{"chunk_id":%d,"timestamp":%d,"elapsed_ms":%d,"remaining_ms":%d,"data":"流式数据块 #%d","server_time":"%s"}`,
+			chunkID, chunk["timestamp"], chunk["elapsed_ms"], chunk["remaining_ms"], chunkID, chunk["server_time"])
+
+		// 写入分块
+		fmt.Fprintf(w, "%x\r\n", len(chunkData))
+		fmt.Fprintf(w, "%s\r\n", chunkData)
+		flusher.Flush()
 	}
 
 	// 结束分块传输
@@ -323,7 +321,7 @@ func handleChunkedUpload(c *gin.Context) {
 		}
 
 		// 读取分块结束标记
-		reader.ReadLine()
+		_, _, _ = reader.ReadLine()
 
 		chunkCount++
 		totalSize += size
@@ -426,12 +424,12 @@ func handleLargeTransfer(c *gin.Context) {
 		if useChunked && ok {
 			// 分块传输
 			fmt.Fprintf(w, "%x\r\n", len(chunk))
-			w.Write(chunk)
+			_, _ = w.Write(chunk)
 			fmt.Fprintf(w, "\r\n")
 			flusher.Flush()
 		} else {
 			// 普通传输
-			w.Write(chunk)
+			_, _ = w.Write(chunk)
 			if ok {
 				flusher.Flush()
 			}
@@ -495,7 +493,7 @@ func handleLargeReceive(c *gin.Context) {
 			}
 
 			// 读取分块结束标记
-			reader.ReadLine()
+			_, _, _ = reader.ReadLine()
 
 			chunkCount++
 			totalSize += size
