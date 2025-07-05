@@ -99,7 +99,7 @@ func handleMemoryTest(c *gin.Context) {
 	for i := range chunks {
 		chunks[i] = nil
 	}
-	chunks = nil
+	chunks = nil //nolint:ineffassign // 明确释放内存引用以帮助垃圾回收
 	runtime.GC()
 
 	runtime.ReadMemStats(&memStats)
