@@ -83,10 +83,19 @@ build/
 dist/
 *.tar.gz
 *.zip
+*.deb
+*.rpm
 
-# Project-specific binary
+# Project-specific binaries and build outputs
 proxy-test-tool
+proxy-test-tool-*
 http_proxy_tool_test_web_demo
+http_proxy_tool_*
+*_linux_amd64
+*_linux_arm64
+*_windows_amd64.exe
+*_darwin_amd64
+*_darwin_arm64
 
 # Database files
 *.db
@@ -116,5 +125,71 @@ Dockerfile.dev
 .connect.lock
 .nyc_output
 .coverage
-.vscode-test 
+.vscode-test
+
+# Go module cache
+go.mod.bak
+go.sum.bak
+
+# GoReleaser
+goreleaser.yml
+
+# Coverage reports
+coverage.txt
+coverage.html
+c.out
+profile.out
+
+# Benchmark results
+*.bench
+
+# Memory profiling
+*.mem
+
+# CPU profiling
+*.prof
+
+# Release artifacts
+releases/
+artifacts/
+checksums.txt
+
+# Local development
+.env.local
+config.local.yaml
+config.local.yml
+
+# Testing
+testdata/tmp/
+test_output/
+
+# Performance testing
+*.pprof
+
+# System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Backup files
+*.backup
+*.orig
+
+# Archive files
+*.tar
+*.gz
+*.bz2
+*.xz
+*.7z
+*.rar
+
+# Certificates and keys (if any)
+*.key
+*.pem
+*.crt
+*.cert
+
+# Local scripts
+local_*
+run_local.* 
 proxy-test-tool-embed
