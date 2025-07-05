@@ -25,6 +25,37 @@
 - ✅ 重定向测试
 - ✅ 流数据和SSE（Server-Sent Events）
 
+### 🔄 传输协议测试功能（新增）
+- ✅ **分块传输编码**（Transfer-Encoding: chunked）
+  - 分块发送和接收
+  - 流式分块传输
+  - 分块文件上传
+  - 大文件传输优化
+- ✅ **多种传输编码**
+  - Identity传输
+  - Deflate压缩传输
+  - Gzip压缩传输
+  - 实时流传输（SSE）
+  - WebSocket传输
+
+### 📝 请求格式处理功能（新增）
+- ✅ **JSON格式增强**
+  - 标准JSON解析
+  - 复杂嵌套JSON处理
+  - 大型JSON文件处理
+- ✅ **XML格式支持**
+  - 标准XML解析
+  - 大型XML文件处理
+  - XML命名空间支持
+- ✅ **Multipart处理**
+  - 标准multipart解析
+  - 复杂multipart格式
+  - 混合multipart数据
+- ✅ **二进制数据处理**
+  - 二进制文件解析
+  - Base64编码支持
+  - 大型二进制文件处理
+
 ### 🔌 WebSocket测试功能
 - ✅ 基础连接测试
 - ✅ 回声（Echo）测试
@@ -61,6 +92,56 @@
 - **代码质量**: golangci-lint（使用默认配置）
 - **容器化**: Docker + Docker Compose
 - **CI/CD**: GitHub Actions
+
+## 🏗️ 架构设计
+
+### 模块化路由系统（v2.0新特性）
+
+项目采用类似Python Flask蓝图的模块化设计，将路由按功能分组到不同模块：
+
+```
+routes/
+├── router.go              # 路由管理器
+├── types.go               # 公共类型定义
+├── api/                   # 基础API模块
+│   └── basic.go           # HTTP基础测试接口
+├── format/                # 格式处理模块
+│   └── formats.go         # 多种数据格式处理
+├── transfer/              # 传输协议模块
+│   └── chunked.go         # 分块传输等高级功能
+└── test/                  # 测试功能模块
+    ├── performance/       # 性能测试
+    │   └── concurrent.go  # 并发压力测试
+    └── system/            # 系统资源测试
+        └── resources.go   # 系统资源监控
+```
+
+### 模块化优势
+
+- ✅ **代码组织清晰**: 每个模块负责特定功能域
+- ✅ **易于维护**: 单个模块文件大小控制在合理范围内
+- ✅ **可扩展性强**: 新增功能只需创建新模块
+- ✅ **团队协作友好**: 不同开发者可并行开发不同模块
+- ✅ **测试覆盖完整**: 每个模块都有独立的测试用例
+
+### API接口分类
+
+项目提供60+个API接口，按功能分为5大类：
+
+1. **基础API模块** (`/api/*`) - 8个接口
+   - HTTP方法测试、状态码模拟、延迟测试等
+
+2. **格式处理模块** (`/api/parse/*`, `/api/complex/*`) - 14个接口
+   - JSON、XML、Multipart、二进制数据处理
+
+3. **传输协议模块** (`/api/transfer/*`) - 12个接口
+   - 分块传输、压缩传输、流式传输等
+
+4. **性能测试模块** (`/test/*`) - 8个接口
+   - 并发测试、压力测试、批量测试等
+
+5. **系统资源模块** (`/test/system`, `/test/memory`, etc.) - 7个接口
+   - 系统信息、内存测试、网络测试等
 
 ## 💎 代码质量
 
@@ -130,17 +211,85 @@ chmod +x proxy-test-tool-linux-amd64
 
 3. **构建项目**
    ```bash
+   # 查看构建帮助（推荐先查看）
+   make help
+   
+   # 构建本地开发版本
+   make build
+   make run
+   
    # 构建嵌入式版本（推荐）- 静态资源打包到二进制文件中
    make build-embed
-   ./proxy-test-tool-embed
+   make run-embed
    
-   # 或构建标准版本
-   make build
-   ./proxy-test-tool
+   # 构建所有平台版本
+   make build-all
+   
+   # 创建完整发布包
+   make package
+   
+   # 查看构建信息
+   make info
    ```
 
 4. **访问界面**
    打开浏览器访问 `http://localhost:8080`
+
+### 🏗️ 构建系统
+
+项目采用结构化的构建系统，所有编译产物都存放在 `build/` 目录下：
+
+```
+build/
+├── bin/                    # 二进制文件
+│   ├── local/              # 本地开发构建
+│   ├── linux/              # Linux平台 (amd64, arm64)
+│   ├── windows/            # Windows平台 (amd64)
+│   └── darwin/             # macOS平台 (amd64, arm64)
+├── dist/                   # 发布包
+│   ├── archives/           # 压缩包
+│   └── checksums/          # 校验和文件
+├── cache/                  # 缓存文件
+└── logs/                   # 日志文件
+```
+
+#### 🔧 构建命令
+
+- `make build` - 构建本地开发版本
+- `make build-all` - 构建所有平台版本
+- `make package` - 创建完整发布包
+- `make clean` - 清理构建文件
+- `make info` - 查看构建信息
+
+详细的构建指南请参考 [BUILD.md](BUILD.md)
+
+### 📝 日志管理
+
+项目采用先进的日志管理系统，支持：
+
+- **📅 按日期分割**：自动按日期创建日志文件
+- **🔄 大小轮转**：文件超过限制时自动轮转
+- **🗜️ 自动压缩**：旧日志文件自动gzip压缩
+- **🧹 智能清理**：按时间和数量自动清理
+- **📊 实时监控**：提供统计API和命令行工具
+
+#### 🔧 日志命令
+
+```bash
+# 查看当天日志
+make logs
+
+# 查看日志统计
+make logs-stats
+
+# 搜索日志内容
+make logs-search SEARCH="关键词"
+
+# 清理旧日志
+make logs-clean
+```
+
+详细的日志管理指南请参考 [LOGGING.md](LOGGING.md)
 
 #### 💡 嵌入式构建的优势
 - ✅ **单文件部署**：所有静态资源（HTML、CSS、JS）打包到二进制文件中
@@ -231,6 +380,8 @@ chmod +x proxy-test-tool-linux-amd64
 
 ## 📖 文档
 
+- [构建指南](BUILD.md) - 详细的构建系统说明
+- [日志管理指南](LOGGING.md) - 日志系统配置和使用说明
 - [用户使用手册](docs/用户使用手册.md) - 详细的使用说明
 - [API文档](http://localhost:8080/api-docs) - 在线API文档
 

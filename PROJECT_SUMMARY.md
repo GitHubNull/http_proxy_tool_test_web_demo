@@ -19,6 +19,25 @@ HTTP/WebSocket代理测试工具是一个专为测试HTTP(S)代理和WebSocket�
 - ✅ **状态码测试**: 全系列HTTP状态码模拟
 - ✅ **流数据**: Server-Sent Events (SSE)、流式响应
 
+### 🔄 传输协议测试功能 (100% 完成 - v2.0新增)
+
+- ✅ **分块传输编码**: Transfer-Encoding: chunked完整支持
+  - 分块发送和接收测试
+  - 流式分块传输
+  - 分块文件上传
+  - 大文件传输优化
+- ✅ **多种传输编码**: Identity、Deflate、Gzip压缩传输
+- ✅ **大文件处理**: 任意大小文件生成和传输测试
+- ✅ **实时流传输**: SSE和WebSocket流式传输
+
+### 📝 请求格式处理功能 (100% 完成 - v2.0新增)
+
+- ✅ **JSON格式增强**: 标准解析、复杂嵌套、大型JSON处理
+- ✅ **XML格式支持**: 标准解析、大型XML、命名空间支持
+- ✅ **Multipart处理**: 标准、复杂、混合multipart数据处理
+- ✅ **二进制数据**: 原始二进制、Base64编码、大型文件处理
+- ✅ **智能解析**: 自动类型检测、错误处理、安全验证
+
 ### 🔌 WebSocket测试功能 (100% 完成)
 
 - ✅ **8种连接类型**: 基础连接、回声、广播、实时推送、心跳、二进制、聊天室、性能测试
@@ -136,10 +155,22 @@ http_proxy_tool_test_web_demo/
 │   ├── index.html            # 主页面
 │   └── api-docs.html         # API文档页面
 ├── main.go                    # 主程序入口
-├── main_test.go              # 测试文件
-├── api_routes.go             # HTTP API路由
-├── websocket_routes.go       # WebSocket路由
-├── test_routes.go            # 性能测试路由
+├── main_test.go              # 测试文件（已更新为模块化架构）
+├── logger.go                 # 高级日志系统
+├── routes/                   # 模块化路由系统（v2.0架构）
+│   ├── router.go             # 路由管理器（类似Flask蓝图）
+│   ├── types.go              # 公共类型定义
+│   ├── api/                  # 基础API模块
+│   │   └── basic.go          # HTTP基础测试接口（8个接口）
+│   ├── format/               # 格式处理模块
+│   │   └── formats.go        # 多种数据格式处理（14个接口）
+│   ├── transfer/             # 传输协议模块
+│   │   └── chunked.go        # 分块传输等高级功能（12个接口）
+│   └── test/                 # 测试功能模块
+│       ├── performance/      # 性能测试
+│       │   └── concurrent.go # 并发压力测试（8个接口）
+│       └── system/           # 系统资源测试
+│           └── resources.go  # 系统资源监控（7个接口）
 ├── Dockerfile                # Docker构建文件
 ├── docker-compose.yml        # 开发环境配置
 ├── docker-compose.prod.yml   # 生产环境配置
@@ -154,10 +185,18 @@ http_proxy_tool_test_web_demo/
 ## 🎯 核心特性
 
 ### 1. 全面的测试覆盖
-- **40+ API接口**: 覆盖所有常见HTTP测试场景
+- **60+ API接口**: 覆盖所有常见HTTP测试场景和高级功能
+  - 基础API模块: 8个接口
+  - 格式处理模块: 14个接口  
+  - 传输协议模块: 12个接口
+  - 性能测试模块: 8个接口
+  - 系统资源模块: 7个接口
+  - WebSocket接口: 8个接口
 - **8种WebSocket连接**: 从基础到高级的WebSocket测试
 - **多种数据格式**: JSON、XML、HTML、文本、二进制
 - **认证机制**: 完整的认证和授权测试
+- **分块传输**: Transfer-Encoding: chunked完整支持
+- **高级格式处理**: 复杂嵌套、大型文件、智能解析
 
 ### 2. 高性能设计
 - **并发支持**: 最高1000并发连接
@@ -177,7 +216,14 @@ http_proxy_tool_test_web_demo/
 - **自动发布**: 基于Git标签的版本发布
 - **质量保证**: 代码检查、测试、安全扫描
 
-### 5. 嵌入式构建
+### 5. 模块化架构（v2.0重大升级）
+- **类似Flask蓝图设计**: 路由按功能分组到不同模块
+- **代码维护性**: 单个模块文件控制在合理大小，易于维护
+- **团队协作**: 不同开发者可并行开发不同模块
+- **可扩展性**: 新增功能只需创建新模块，无需修改现有代码
+- **测试友好**: 每个模块都有独立的测试覆盖
+
+### 6. 嵌入式构建
 - **静态资源打包**: 所有HTML、CSS、JS文件打包到二进制文件中
 - **单文件部署**: 无需额外的static和templates目录
 - **跨平台支持**: Linux、macOS、Windows多平台嵌入式构建

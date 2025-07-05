@@ -296,28 +296,32 @@ jobs:
 
       - name: Build for multiple platforms
         run: |
-          # 创建构建目录
-          mkdir -p dist
-          
-          # 构建Linux amd64
-          GOOS=linux GOARCH=amd64 go build -ldflags="-w -s -X main.version=${{ steps.get_version.outputs.VERSION }}" -o dist/http_proxy_tool_linux_amd64 .
-          
-          # 构建Linux arm64
-          GOOS=linux GOARCH=arm64 go build -ldflags="-w -s -X main.version=${{ steps.get_version.outputs.VERSION }}" -o dist/http_proxy_tool_linux_arm64 .
-          
-          # 构建Windows amd64
-          GOOS=windows GOARCH=amd64 go build -ldflags="-w -s -X main.version=${{ steps.get_version.outputs.VERSION }}" -o dist/http_proxy_tool_windows_amd64.exe .
-          
-          # 构建macOS amd64
-          GOOS=darwin GOARCH=amd64 go build -ldflags="-w -s -X main.version=${{ steps.get_version.outputs.VERSION }}" -o dist/http_proxy_tool_darwin_amd64 .
-          
-          # 构建macOS arm64
-          GOOS=darwin GOARCH=arm64 go build -ldflags="-w -s -X main.version=${{ steps.get_version.outputs.VERSION }}" -o dist/http_proxy_tool_darwin_arm64 .
+          # 使用Makefile构建所有平台版本
+          make build-all
           
           # 生成校验和
-          cd dist
-          sha256sum * > checksums.txt
-          ls -la
+          make checksums
+          
+          # 创建发布包
+          make package
+          
+          # 为GitHub Release准备文件（保持向后兼容）
+          mkdir -p dist
+          cp build/bin/linux/amd64/proxy-test-tool dist/http_proxy_tool_linux_amd64
+          cp build/bin/linux/arm64/proxy-test-tool dist/http_proxy_tool_linux_arm64
+          cp build/bin/windows/amd64/proxy-test-tool.exe dist/http_proxy_tool_windows_amd64.exe
+          cp build/bin/darwin/amd64/proxy-test-tool dist/http_proxy_tool_darwin_amd64
+          cp build/bin/darwin/arm64/proxy-test-tool dist/http_proxy_tool_darwin_arm64
+          
+          # 复制校验和文件
+          cp build/dist/checksums/sha256sums.txt dist/checksums.txt
+          
+          # 显示构建结果
+          echo "=== 构建产物 ==="
+          ls -la dist/
+          echo ""
+          echo "=== 发布包 ==="
+          ls -la build/dist/archives/
 
       # Docker镜像已在docker-build job中构建完成，此处不再重复构建
 

@@ -1,5 +1,5 @@
 # Makefile for HTTP/WebSocket代理测试工具
-.PHONY: help build run test clean docker-build docker-run docker-stop install fmt vet deps
+.PHONY: help build run test clean docker-build docker-run docker-stop install fmt vet deps setup-dirs
 
 # 默认目标
 .DEFAULT_GOAL := help
@@ -9,9 +9,62 @@ BINARY_NAME=proxy-test-tool
 DOCKER_IMAGE=proxy-test-tool
 PORT=8080
 
+# 构建目录结构
+BUILD_DIR=build
+BIN_DIR=$(BUILD_DIR)/bin
+DIST_DIR=$(BUILD_DIR)/dist
+TMP_DIR=$(BUILD_DIR)/tmp
+LOGS_DIR=logs
+CACHE_DIR=$(BUILD_DIR)/cache
+
+# 平台特定目录
+LOCAL_BIN_DIR=$(BIN_DIR)/local
+LINUX_BIN_DIR=$(BIN_DIR)/linux
+WINDOWS_BIN_DIR=$(BIN_DIR)/windows
+DARWIN_BIN_DIR=$(BIN_DIR)/darwin
+
+# 架构特定目录
+LINUX_AMD64_DIR=$(LINUX_BIN_DIR)/amd64
+LINUX_ARM64_DIR=$(LINUX_BIN_DIR)/arm64
+WINDOWS_AMD64_DIR=$(WINDOWS_BIN_DIR)/amd64
+DARWIN_AMD64_DIR=$(DARWIN_BIN_DIR)/amd64
+DARWIN_ARM64_DIR=$(DARWIN_BIN_DIR)/arm64
+
+# 发布目录
+ARCHIVES_DIR=$(DIST_DIR)/archives
+CHECKSUMS_DIR=$(DIST_DIR)/checksums
+
+# 创建目录结构
+setup-dirs: ## 创建构建目录结构
+	@mkdir -p $(LOCAL_BIN_DIR)
+	@mkdir -p $(LINUX_AMD64_DIR) $(LINUX_ARM64_DIR)
+	@mkdir -p $(WINDOWS_AMD64_DIR)
+	@mkdir -p $(DARWIN_AMD64_DIR) $(DARWIN_ARM64_DIR)
+	@mkdir -p $(ARCHIVES_DIR) $(CHECKSUMS_DIR)
+	@mkdir -p $(TMP_DIR) $(LOGS_DIR) $(CACHE_DIR)
+	@echo "✅ 构建目录结构已创建"
+
 # 帮助信息
 help: ## 显示帮助信息
 	@echo "HTTP/WebSocket代理测试工具 - 可用命令："
+	@echo ""
+	@echo "构建目录结构："
+	@echo "  build/"
+	@echo "  ├── bin/           # 二进制文件"
+	@echo "  │   ├── local/     # 本地开发"
+	@echo "  │   ├── linux/     # Linux平台 (amd64, arm64)"
+	@echo "  │   ├── windows/   # Windows平台 (amd64)"
+	@echo "  │   └── darwin/    # macOS平台 (amd64, arm64)"
+	@echo "  ├── dist/          # 发布包"
+	@echo "  │   ├── archives/  # 压缩包"
+	@echo "  │   └── checksums/ # 校验和文件"
+	@echo "  ├── tmp/           # 临时文件"
+	@echo "  └── cache/         # 缓存文件"
+	@echo ""
+	@echo "logs/                                # 日志文件目录（项目根目录下）"
+	@echo "├── server-YYYY-MM-DD.log           # 按日期分割的日志"
+	@echo "├── server-YYYY-MM-DD-HH-MM-SS.log.gz  # 压缩的轮转日志"
+	@echo "└── nohup.out                       # 系统启动日志"
 	@echo ""
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
@@ -30,47 +83,99 @@ test: ## 运行测试
 	go test -v ./...
 
 # 构建相关
-build: deps fmt vet ## 构建项目
-	go build -o $(BINARY_NAME) .
+build: setup-dirs deps fmt vet ## 构建本地开发版本
+	go build -o $(LOCAL_BIN_DIR)/$(BINARY_NAME) .
+	@echo "✅ 本地构建完成: $(LOCAL_BIN_DIR)/$(BINARY_NAME)"
 
-build-embed: deps fmt vet ## 构建嵌入式版本（静态资源打包到二进制文件中）
-	go build -o $(BINARY_NAME)-embed .
+build-embed: setup-dirs deps fmt vet ## 构建本地嵌入式版本（静态资源打包到二进制文件中）
+	go build -o $(LOCAL_BIN_DIR)/$(BINARY_NAME)-embed .
+	@echo "✅ 本地嵌入式构建完成: $(LOCAL_BIN_DIR)/$(BINARY_NAME)-embed"
 
-build-linux: deps fmt vet ## 构建Linux版本
-	GOOS=linux GOARCH=amd64 go build -o $(BINARY_NAME)-linux .
+# Linux构建
+build-linux-amd64: setup-dirs deps fmt vet ## 构建Linux AMD64版本
+	GOOS=linux GOARCH=amd64 go build -o $(LINUX_AMD64_DIR)/$(BINARY_NAME) .
+	@echo "✅ Linux AMD64构建完成: $(LINUX_AMD64_DIR)/$(BINARY_NAME)"
 
-build-linux-embed: deps fmt vet ## 构建Linux嵌入式版本
-	GOOS=linux GOARCH=amd64 go build -o $(BINARY_NAME)-linux-embed .
+build-linux-arm64: setup-dirs deps fmt vet ## 构建Linux ARM64版本
+	GOOS=linux GOARCH=arm64 go build -o $(LINUX_ARM64_DIR)/$(BINARY_NAME) .
+	@echo "✅ Linux ARM64构建完成: $(LINUX_ARM64_DIR)/$(BINARY_NAME)"
 
-build-windows: deps fmt vet ## 构建Windows版本
-	GOOS=windows GOARCH=amd64 go build -o $(BINARY_NAME)-windows.exe .
+build-linux: build-linux-amd64 build-linux-arm64 ## 构建所有Linux版本
 
-build-windows-embed: deps fmt vet ## 构建Windows嵌入式版本
-	GOOS=windows GOARCH=amd64 go build -o $(BINARY_NAME)-windows-embed.exe .
+# Windows构建
+build-windows-amd64: setup-dirs deps fmt vet ## 构建Windows AMD64版本
+	GOOS=windows GOARCH=amd64 go build -o $(WINDOWS_AMD64_DIR)/$(BINARY_NAME).exe .
+	@echo "✅ Windows AMD64构建完成: $(WINDOWS_AMD64_DIR)/$(BINARY_NAME).exe"
 
-build-mac: deps fmt vet ## 构建macOS版本
-	GOOS=darwin GOARCH=amd64 go build -o $(BINARY_NAME)-mac .
+build-windows: build-windows-amd64 ## 构建所有Windows版本
 
-build-mac-embed: deps fmt vet ## 构建macOS嵌入式版本
-	GOOS=darwin GOARCH=amd64 go build -o $(BINARY_NAME)-mac-embed .
+# macOS构建
+build-darwin-amd64: setup-dirs deps fmt vet ## 构建macOS AMD64版本
+	GOOS=darwin GOARCH=amd64 go build -o $(DARWIN_AMD64_DIR)/$(BINARY_NAME) .
+	@echo "✅ macOS AMD64构建完成: $(DARWIN_AMD64_DIR)/$(BINARY_NAME)"
 
-build-all: build-linux build-windows build-mac ## 构建所有平台版本
+build-darwin-arm64: setup-dirs deps fmt vet ## 构建macOS ARM64版本（Apple Silicon）
+	GOOS=darwin GOARCH=arm64 go build -o $(DARWIN_ARM64_DIR)/$(BINARY_NAME) .
+	@echo "✅ macOS ARM64构建完成: $(DARWIN_ARM64_DIR)/$(BINARY_NAME)"
 
-build-all-embed: build-linux-embed build-windows-embed build-mac-embed ## 构建所有平台嵌入式版本
+build-darwin: build-darwin-amd64 build-darwin-arm64 ## 构建所有macOS版本
+
+# 构建所有平台
+build-all: build-linux build-windows build-darwin ## 构建所有平台版本
+	@echo "🎉 所有平台构建完成！"
+	@echo "构建产物位置："
+	@find $(BIN_DIR) -name "$(BINARY_NAME)*" -type f
+
+# 生成校验和
+checksums: ## 生成所有二进制文件的校验和
+	@echo "生成校验和文件..."
+	@find $(BIN_DIR) -name "$(BINARY_NAME)*" -type f -exec sha256sum {} \; > $(CHECKSUMS_DIR)/sha256sums.txt
+	@echo "✅ 校验和文件已生成: $(CHECKSUMS_DIR)/sha256sums.txt"
+
+# 创建发布包
+package: build-all checksums ## 创建发布包
+	@echo "创建发布包..."
+	
+	# Linux包
+	@tar -czf $(ARCHIVES_DIR)/$(BINARY_NAME)-linux-amd64.tar.gz -C $(LINUX_AMD64_DIR) $(BINARY_NAME) && \
+	tar -czf $(ARCHIVES_DIR)/$(BINARY_NAME)-linux-arm64.tar.gz -C $(LINUX_ARM64_DIR) $(BINARY_NAME)
+	
+	# Windows包
+	@cd $(WINDOWS_AMD64_DIR) && zip -r $(CURDIR)/$(ARCHIVES_DIR)/$(BINARY_NAME)-windows-amd64.zip $(BINARY_NAME).exe
+	
+	# macOS包
+	@tar -czf $(ARCHIVES_DIR)/$(BINARY_NAME)-darwin-amd64.tar.gz -C $(DARWIN_AMD64_DIR) $(BINARY_NAME) && \
+	tar -czf $(ARCHIVES_DIR)/$(BINARY_NAME)-darwin-arm64.tar.gz -C $(DARWIN_ARM64_DIR) $(BINARY_NAME)
+	
+	# 生成发布包校验和
+	@cd $(ARCHIVES_DIR) && sha256sum *.tar.gz *.zip > ../checksums/archives-sha256sums.txt
+	
+	@echo "✅ 发布包创建完成:"
+	@ls -la $(ARCHIVES_DIR)/
 
 # 运行相关
-run: build ## 构建并运行
-	./$(BINARY_NAME)
+run: build ## 构建并运行本地版本
+	$(LOCAL_BIN_DIR)/$(BINARY_NAME)
+
+run-embed: build-embed ## 构建并运行嵌入式版本
+	$(LOCAL_BIN_DIR)/$(BINARY_NAME)-embed
 
 dev: ## 开发模式运行
 	go run .
 
 # 清理相关
-clean: ## 清理构建文件
-	rm -f $(BINARY_NAME)
-	rm -f $(BINARY_NAME)-*
-	rm -f server.log
+clean: ## 清理所有构建文件
+	rm -rf $(BUILD_DIR)
 	rm -f nohup.out
+	@echo "✅ 清理完成"
+
+clean-bin: ## 只清理二进制文件
+	rm -rf $(BIN_DIR)
+	@echo "✅ 二进制文件清理完成"
+
+clean-dist: ## 只清理发布包
+	rm -rf $(DIST_DIR)
+	@echo "✅ 发布包清理完成"
 
 # Docker相关
 docker-build: ## 构建Docker镜像
@@ -94,37 +199,108 @@ docker-compose-logs: ## 查看Docker Compose日志
 
 # 安装相关
 install: build ## 安装到系统
-	sudo cp $(BINARY_NAME) /usr/local/bin/
+	sudo cp $(LOCAL_BIN_DIR)/$(BINARY_NAME) /usr/local/bin/
+	@echo "✅ 已安装到 /usr/local/bin/$(BINARY_NAME)"
 
 uninstall: ## 从系统卸载
 	sudo rm -f /usr/local/bin/$(BINARY_NAME)
-
-# 发布相关
-release: clean build-all ## 创建发布版本
-	mkdir -p release
-	cp $(BINARY_NAME)-linux release/
-	cp $(BINARY_NAME)-windows.exe release/
-	cp $(BINARY_NAME)-mac release/
-	cp README.md release/
-	cp LICENSE release/
-	tar -czf release/$(BINARY_NAME)-linux.tar.gz -C release $(BINARY_NAME)-linux README.md LICENSE
-	zip -j release/$(BINARY_NAME)-windows.zip release/$(BINARY_NAME)-windows.exe release/README.md release/LICENSE
-	tar -czf release/$(BINARY_NAME)-mac.tar.gz -C release $(BINARY_NAME)-mac README.md LICENSE
+	@echo "✅ 已从系统卸载"
 
 # 服务管理
-start: ## 后台启动服务
-	nohup ./$(BINARY_NAME) > server.log 2>&1 &
-	@echo "服务已启动，日志文件：server.log"
+start: build ## 后台启动服务
+	@mkdir -p $(LOGS_DIR)
+	nohup $(LOCAL_BIN_DIR)/$(BINARY_NAME) > $(LOGS_DIR)/nohup.out 2>&1 &
+	@echo "✅ 服务已启动"
+	@echo "📋 日志管理："
+	@echo "  - 应用日志: $(LOGS_DIR)/server-$(shell date +%Y-%m-%d).log"
+	@echo "  - 系统日志: $(LOGS_DIR)/nohup.out"
+	@echo "  - 查看日志: make logs"
+	@echo "  - 日志统计: make logs-stats"
+	@echo "  - 自定义日志目录: ./$(BINARY_NAME) -log-dir /path/to/logs"
 
 stop: ## 停止服务
 	pkill -f $(BINARY_NAME) || true
-	@echo "服务已停止"
+	@echo "✅ 服务已停止"
 
 status: ## 查看服务状态
-	@ps aux | grep $(BINARY_NAME) | grep -v grep || echo "服务未运行"
+	@ps aux | grep $(BINARY_NAME) | grep -v grep || echo "❌ 服务未运行"
 
-logs: ## 查看日志
-	tail -f server.log
+logs: ## 查看当天日志
+	@if [ -f "$(LOGS_DIR)/server-$(shell date +%Y-%m-%d).log" ]; then \
+		tail -f $(LOGS_DIR)/server-$(shell date +%Y-%m-%d).log; \
+	else \
+		echo "❌ 当天日志文件不存在: $(LOGS_DIR)/server-$(shell date +%Y-%m-%d).log"; \
+	fi
+
+logs-all: ## 查看所有日志文件
+	@echo "📋 日志文件列表:"
+	@ls -lht $(LOGS_DIR)/ 2>/dev/null || echo "❌ 日志目录不存在"
+
+logs-stats: ## 查看日志统计信息
+	@echo "📊 日志统计信息:"
+	@if [ -d "$(LOGS_DIR)" ]; then \
+		echo "日志目录: $(LOGS_DIR)"; \
+		echo "文件数量: $$(find $(LOGS_DIR) -name "server-*.log*" | wc -l)"; \
+		echo "总大小: $$(du -sh $(LOGS_DIR) 2>/dev/null | cut -f1)"; \
+		echo "最新日志: $$(ls -t $(LOGS_DIR)/server-*.log* 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo '无')"; \
+		echo "最旧日志: $$(ls -tr $(LOGS_DIR)/server-*.log* 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo '无')"; \
+		echo "压缩文件: $$(find $(LOGS_DIR) -name "*.gz" | wc -l)"; \
+	else \
+		echo "❌ 日志目录不存在"; \
+	fi
+
+logs-clean: ## 清理旧日志文件（保留最近7天）
+	@echo "🧹 清理旧日志文件..."
+	@if [ -d "$(LOGS_DIR)" ]; then \
+		find $(LOGS_DIR) -name "server-*.log*" -mtime +7 -type f -exec rm -v {} \; 2>/dev/null || true; \
+		echo "✅ 日志清理完成"; \
+	else \
+		echo "❌ 日志目录不存在"; \
+	fi
+
+logs-compress: ## 压缩7天前的日志文件
+	@echo "🗜️ 压缩旧日志文件..."
+	@if [ -d "$(LOGS_DIR)" ]; then \
+		find $(LOGS_DIR) -name "server-*.log" -mtime +7 -type f -exec gzip -v {} \; 2>/dev/null || true; \
+		echo "✅ 日志压缩完成"; \
+	else \
+		echo "❌ 日志目录不存在"; \
+	fi
+
+logs-search: ## 搜索日志内容（用法: make logs-search SEARCH="关键词"）
+	@if [ -z "$(SEARCH)" ]; then \
+		echo "❌ 请指定搜索关键词: make logs-search SEARCH=\"关键词\""; \
+	elif [ -d "$(LOGS_DIR)" ]; then \
+		echo "🔍 搜索日志内容: $(SEARCH)"; \
+		grep -r "$(SEARCH)" $(LOGS_DIR)/ || echo "未找到匹配内容"; \
+	else \
+		echo "❌ 日志目录不存在"; \
+	fi
+
+logs-tail: ## 实时查看日志（用法: make logs-tail [LINES=100]）
+	@LINES=$${LINES:-100}; \
+	if [ -f "$(LOGS_DIR)/server-$(shell date +%Y-%m-%d).log" ]; then \
+		echo "📖 实时查看日志 (最近$$LINES行):"; \
+		tail -n $$LINES -f $(LOGS_DIR)/server-$(shell date +%Y-%m-%d).log; \
+	else \
+		echo "❌ 当天日志文件不存在"; \
+	fi
+
+logs-maintain: ## 执行完整的日志维护（压缩+清理）
+	@echo "🔧 执行日志维护..."
+	@if [ -x "scripts/log-maintenance.sh" ]; then \
+		./scripts/log-maintenance.sh maintain; \
+	else \
+		echo "❌ 日志维护脚本不存在或无执行权限"; \
+		echo "请运行: chmod +x scripts/log-maintenance.sh"; \
+	fi
+
+logs-monitor: ## 监控日志目录大小
+	@if [ -x "scripts/log-maintenance.sh" ]; then \
+		./scripts/log-maintenance.sh monitor; \
+	else \
+		echo "❌ 日志维护脚本不存在或无执行权限"; \
+	fi
 
 # 测试相关
 test-api: ## 测试API接口
@@ -142,11 +318,33 @@ watch: ## 监控文件变化自动重启（需要安装fswatch）
 	fswatch -o . | xargs -n1 -I{} make dev
 
 # 性能分析
-profile: ## 性能分析
-	go run . -cpuprofile=cpu.prof -memprofile=mem.prof
+profile: setup-dirs ## 性能分析
+	go run . -cpuprofile=$(CACHE_DIR)/cpu.prof -memprofile=$(CACHE_DIR)/mem.prof
 
 benchmark: ## 基准测试
 	go test -bench=. -benchmem
+
+# 信息查看
+info: ## 显示构建信息
+	@echo "项目信息："
+	@echo "  项目名称: $(BINARY_NAME)"
+	@echo "  构建目录: $(BUILD_DIR)/"
+	@echo "  Docker镜像: $(DOCKER_IMAGE)"
+	@echo "  服务端口: $(PORT)"
+	@echo ""
+	@echo "构建产物统计："
+	@if [ -d "$(BIN_DIR)" ]; then \
+		echo "  二进制文件:"; \
+		find $(BIN_DIR) -name "$(BINARY_NAME)*" -type f -exec ls -lh {} \; | awk '{printf "    %s %s\n", $$5, $$9}'; \
+	else \
+		echo "  暂无二进制文件"; \
+	fi
+	@if [ -d "$(ARCHIVES_DIR)" ]; then \
+		echo "  发布包:"; \
+		ls -lh $(ARCHIVES_DIR)/* 2>/dev/null | awk '{printf "    %s %s\n", $$5, $$9}' || echo "    暂无发布包"; \
+	else \
+		echo "  暂无发布包"; \
+	fi
 
 # 文档生成
 docs: ## 生成文档

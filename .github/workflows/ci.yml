@@ -67,8 +67,11 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           file: ./coverage.out
+          # Note: IDE may show warning about CODECOV_TOKEN, but this is expected
+          # The token will be available in GitHub Actions environment
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
+        continue-on-error: true
 
   # 构建测试
   build:
