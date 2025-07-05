@@ -78,15 +78,10 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
-# Build artifacts
+# Build directory - contains all build artifacts
 build/
-dist/
-*.tar.gz
-*.zip
-*.deb
-*.rpm
 
-# Project-specific binaries and build outputs
+# Legacy build artifacts (in case they still exist in root)
 proxy-test-tool
 proxy-test-tool-*
 http_proxy_tool_test_web_demo
@@ -104,6 +99,12 @@ app
 server
 client
 *_binary
+
+# Archive files (in case created outside build dir)
+*.tar.gz
+*.zip
+*.deb
+*.rpm
 
 # Database files
 *.db
