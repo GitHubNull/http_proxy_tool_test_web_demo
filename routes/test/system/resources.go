@@ -380,20 +380,25 @@ func handleSystemInfo(c *gin.Context) {
 	runtime.ReadMemStats(&memStats)
 
 	systemInfo := map[string]interface{}{
-		"go_version":          runtime.Version(),
-		"go_os":               runtime.GOOS,
-		"go_arch":             runtime.GOARCH,
-		"cpu_cores":           runtime.NumCPU(),
-		"goroutines":          runtime.NumGoroutine(),
-		"memory_alloc":        memStats.Alloc,
-		"memory_total_alloc":  memStats.TotalAlloc,
-		"memory_sys":          memStats.Sys,
-		"memory_heap_alloc":   memStats.HeapAlloc,
-		"memory_heap_sys":     memStats.HeapSys,
-		"memory_heap_objects": memStats.HeapObjects,
-		"gc_cycles":           memStats.NumGC,
-		"gc_pause_total":      memStats.PauseTotalNs,
-		"timestamp":           time.Now().Unix(),
+		"go_version":      runtime.Version(),
+		"go_os":           runtime.GOOS,
+		"go_arch":         runtime.GOARCH,
+		"cpu_count":       runtime.NumCPU(),
+		"goroutine_count": runtime.NumGoroutine(),
+		"memory": map[string]interface{}{
+			"alloc_mb":     float64(memStats.Alloc) / 1024 / 1024,
+			"total_alloc":  memStats.TotalAlloc,
+			"sys_mb":       float64(memStats.Sys) / 1024 / 1024,
+			"heap_alloc":   memStats.HeapAlloc,
+			"heap_sys":     memStats.HeapSys,
+			"heap_objects": memStats.HeapObjects,
+		},
+		"gc": map[string]interface{}{
+			"num_gc":         memStats.NumGC,
+			"pause_total_ns": memStats.PauseTotalNs,
+			"last_gc":        memStats.LastGC,
+		},
+		"timestamp": time.Now().Unix(),
 	}
 
 	response := routes.CreateSuccessResponse("系统信息获取成功", systemInfo)
