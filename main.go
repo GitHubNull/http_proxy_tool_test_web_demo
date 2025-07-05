@@ -92,21 +92,67 @@ func main() {
 
 	// 主页
 	r.GET("/", func(c *gin.Context) {
+		// 获取当前请求的主机地址
+		scheme := "http"
+		if c.Request.TLS != nil {
+			scheme = "https"
+		}
+		if c.GetHeader("X-Forwarded-Proto") == "https" {
+			scheme = "https"
+		}
+
+		host := c.Request.Host
+		if host == "" {
+			host = "localhost:8080"
+		}
+
+		baseURL := fmt.Sprintf("%s://%s", scheme, host)
+		wsURL := fmt.Sprintf("ws://%s", host)
+		if scheme == "https" {
+			wsURL = fmt.Sprintf("wss://%s", host)
+		}
+
 		c.HTML(http.StatusOK, "index.html", gin.H{
 			"title":       "HTTP/WebSocket代理测试工具",
 			"version":     Version,
 			"buildTime":   BuildTime,
 			"buildCommit": BuildCommit,
+			"baseURL":     baseURL,
+			"wsURL":       wsURL,
+			"host":        host,
 		})
 	})
 
 	// API文档页面
 	r.GET("/api-docs", func(c *gin.Context) {
+		// 获取当前请求的主机地址
+		scheme := "http"
+		if c.Request.TLS != nil {
+			scheme = "https"
+		}
+		if c.GetHeader("X-Forwarded-Proto") == "https" {
+			scheme = "https"
+		}
+
+		host := c.Request.Host
+		if host == "" {
+			host = "localhost:8080"
+		}
+
+		baseURL := fmt.Sprintf("%s://%s", scheme, host)
+		wsURL := fmt.Sprintf("ws://%s", host)
+		if scheme == "https" {
+			wsURL = fmt.Sprintf("wss://%s", host)
+		}
+
 		c.HTML(http.StatusOK, "api-docs.html", gin.H{
 			"title":       "API文档",
 			"version":     Version,
 			"buildTime":   BuildTime,
 			"buildCommit": BuildCommit,
+			"baseURL":     baseURL,
+			"wsURL":       wsURL,
+			"host":        host,
 		})
 	})
 

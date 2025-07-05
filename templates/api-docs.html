@@ -49,7 +49,7 @@
                             <p>本文档描述了HTTP/WebSocket代理测试工具提供的所有API接口。这些接口专为测试HTTP(S)代理和WebSocket代理抓包软件而设计。</p>
                             
                             <h4>基础URL</h4>
-                            <div class="code-block">http://localhost:8080</div>
+                            <div class="code-block">{{.baseURL}}</div>
                             
                             <h4>特性</h4>
                             <ul>
@@ -291,29 +291,29 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <h6>基础连接</h6>
-                                    <div class="code-block">ws://localhost:8080/ws/connect</div>
+                                    <div class="code-block">{{.wsURL}}/ws/connect</div>
                                     
                                     <h6>回声测试</h6>
-                                    <div class="code-block">ws://localhost:8080/ws/echo</div>
+                                    <div class="code-block">{{.wsURL}}/ws/echo</div>
                                     
                                     <h6>广播测试</h6>
-                                    <div class="code-block">ws://localhost:8080/ws/broadcast</div>
+                                    <div class="code-block">{{.wsURL}}/ws/broadcast</div>
                                     
                                     <h6>实时数据推送</h6>
-                                    <div class="code-block">ws://localhost:8080/ws/realtime</div>
+                                    <div class="code-block">{{.wsURL}}/ws/realtime</div>
                                 </div>
                                 <div class="col-md-6">
                                     <h6>心跳检测</h6>
-                                    <div class="code-block">ws://localhost:8080/ws/heartbeat</div>
+                                    <div class="code-block">{{.wsURL}}/ws/heartbeat</div>
                                     
                                     <h6>二进制传输</h6>
-                                    <div class="code-block">ws://localhost:8080/ws/binary</div>
+                                    <div class="code-block">{{.wsURL}}/ws/binary</div>
                                     
                                     <h6>聊天室</h6>
-                                    <div class="code-block">ws://localhost:8080/ws/chat</div>
+                                    <div class="code-block">{{.wsURL}}/ws/chat</div>
                                     
                                     <h6>性能测试</h6>
-                                    <div class="code-block">ws://localhost:8080/ws/performance?count=100&interval=10</div>
+                                    <div class="code-block">{{.wsURL}}/ws/performance?count=100&interval=10</div>
                                 </div>
                             </div>
                         </div>
@@ -401,23 +401,23 @@
                         </div>
                         <div class="card-body">
                             <h6>基础GET请求</h6>
-                            <div class="code-block">curl -X GET "http://localhost:8080/api/test"</div>
+                            <div class="code-block">curl -X GET "{{.baseURL}}/api/test"</div>
                             
                             <h6>POST请求发送JSON数据</h6>
-                            <div class="code-block">curl -X POST "http://localhost:8080/api/test" \
+                            <div class="code-block">curl -X POST "{{.baseURL}}/api/test" \
   -H "Content-Type: application/json" \
   -d '{"message": "Hello, World!"}'</div>
                             
                             <h6>文件上传</h6>
-                            <div class="code-block">curl -X POST "http://localhost:8080/api/upload" \
+                            <div class="code-block">curl -X POST "{{.baseURL}}/api/upload" \
   -F "file=@example.txt"</div>
                             
                             <h6>基础认证</h6>
-                            <div class="code-block">curl -X GET "http://localhost:8080/api/auth/basic" \
+                            <div class="code-block">curl -X GET "{{.baseURL}}/api/auth/basic" \
   -u "username:password"</div>
                             
                             <h6>Bearer认证</h6>
-                            <div class="code-block">curl -X GET "http://localhost:8080/api/auth/bearer" \
+                            <div class="code-block">curl -X GET "{{.baseURL}}/api/auth/bearer" \
   -H "Authorization: Bearer your-token-here"</div>
                         </div>
                     </div>
@@ -446,7 +446,7 @@
 .then(data => console.log(data));</div>
                             
                             <h6>WebSocket连接</h6>
-                            <div class="code-block">const ws = new WebSocket('ws://localhost:8080/ws/connect');
+                            <div class="code-block">const ws = new WebSocket('{{.wsURL}}/ws/connect');
 
 ws.onopen = function(event) {
   console.log('WebSocket连接已建立');
